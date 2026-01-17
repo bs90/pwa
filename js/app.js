@@ -79,7 +79,6 @@ updateOnlineStatus();
 // ===== Game Navigation =====
 const gameList = document.querySelector('.game-list');
 const gameContainer = document.getElementById('gameContainer');
-const gameTitle = document.getElementById('gameTitle');
 const gameContent = document.getElementById('gameContent');
 const backBtn = document.getElementById('backBtn');
 
@@ -108,8 +107,7 @@ function loadGame(gameName) {
   // Update UI
   gameList.style.display = 'none';
   gameContainer.style.display = 'block';
-  gameTitle.textContent = game.title;
-  gameContent.innerHTML = '<div class="loading"></div> Đang tải game...';
+  gameContent.innerHTML = ''; // Clear content
   
   // Load game script
   const script = document.createElement('script');
