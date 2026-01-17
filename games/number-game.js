@@ -21,44 +21,61 @@ class NumberGame extends Phaser.Scene {
         // Draw perspective grid (road effect)
         this.drawPerspectiveGrid();
         
-        // Player circle with number
+        // Player car with number
         this.player = {
             number: 1,
-            circle: null,
+            car: null,
             text: null
         };
         
         // Create player at bottom center (closer to bottom, bigger)
         const playerY = height * 0.85;
-        const playerRadius = 70;
         
-        // Draw player circle
-        const graphics = this.add.graphics();
-        graphics.fillStyle(0xFFD700, 1);
-        graphics.fillCircle(0, 0, playerRadius);
-        graphics.lineStyle(4, 0x000000, 1);
-        graphics.strokeCircle(0, 0, playerRadius);
+        // Draw player car (simple top-down view)
+        const carGraphics = this.add.graphics();
         
-        graphics.generateTexture('playerCircle', playerRadius * 2, playerRadius * 2);
-        graphics.destroy();
+        // Car body (blue)
+        carGraphics.fillStyle(0x3498db, 1);
+        carGraphics.fillRoundedRect(-40, -60, 80, 120, 10);
         
-        this.player.circle = this.add.sprite(width / 2, playerY, 'playerCircle');
+        // Car windows (darker blue)
+        carGraphics.fillStyle(0x2c3e50, 1);
+        carGraphics.fillRoundedRect(-30, -40, 60, 35, 5); // Front window
+        carGraphics.fillRoundedRect(-30, 10, 60, 35, 5);  // Back window
         
-        // Add number text on player (bigger font)
-        this.player.text = this.add.text(width / 2, playerY, '1', {
-            fontSize: '48px',
+        // Car outline
+        carGraphics.lineStyle(3, 0x000000, 1);
+        carGraphics.strokeRoundedRect(-40, -60, 80, 120, 10);
+        
+        // Wheels (black circles)
+        carGraphics.fillStyle(0x000000, 1);
+        carGraphics.fillCircle(-35, -45, 8);  // Front left
+        carGraphics.fillCircle(35, -45, 8);   // Front right
+        carGraphics.fillCircle(-35, 45, 8);   // Back left
+        carGraphics.fillCircle(35, 45, 8);    // Back right
+        
+        carGraphics.generateTexture('playerCar', 100, 140);
+        carGraphics.destroy();
+        
+        this.player.car = this.add.sprite(width / 2, playerY, 'playerCar');
+        
+        // Add number text on car (bigger font, white for contrast)
+        this.player.text = this.add.text(width / 2, playerY - 10, '1', {
+            fontSize: '52px',
             fontFamily: 'Arial',
-            color: '#000000',
-            fontStyle: 'bold'
+            color: '#ffffff',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 4
         });
         this.player.text.setOrigin(0.5);
         
         // Array to hold incoming objects
         this.objects = [];
         
-        // Spawn objects periodically
+        // Spawn objects periodically (slower: 2s → 4s)
         this.time.addEvent({
-            delay: 2000,
+            delay: 4000,
             callback: this.spawnObject,
             callbackScope: this,
             loop: true
@@ -230,19 +247,19 @@ class NumberGame extends Phaser.Scene {
             obj.isNumber = false;
         }
         
-        // Animate toward player (pseudo 3D effect)
+        // Animate toward player (pseudo 3D effect, slower: 2s → 4s)
         this.tweens.add({
             targets: obj,
             x: endX,
             y: endY,
             scale: endScale,
-            duration: 2000,
+            duration: 4000,
             ease: 'Cubic.easeIn',
             onComplete: () => {
                 // Check collision with player
                 const distance = Phaser.Math.Distance.Between(
                     obj.x, obj.y,
-                    this.player.circle.x, this.player.circle.y
+                    this.player.car.x, this.player.car.y
                 );
                 
                 if (distance < 80) {
@@ -250,12 +267,6 @@ class NumberGame extends Phaser.Scene {
                         // Collect number
                         this.player.number += obj.value;
                         this.player.text.setText(this.player.number.toString());
-                        
-                        // Flash effect
-                        this.cameras.main.flash(200, 100, 255, 100);
-                    } else {
-                        // Hit obstacle
-                        this.cameras.main.shake(300, 0.01);
                     }
                 }
                 
@@ -270,7 +281,7 @@ class NumberGame extends Phaser.Scene {
                 x: endX,
                 y: endY,
                 scale: endScale,
-                duration: 2000,
+                duration: 4000,
                 ease: 'Cubic.easeIn'
             });
         }
@@ -280,15 +291,15 @@ class NumberGame extends Phaser.Scene {
     
     update() {
         // Smooth follow target X position
-        if (this.isDragging || Math.abs(this.player.circle.x - this.targetX) > 1) {
+        if (this.isDragging || Math.abs(this.player.car.x - this.targetX) > 1) {
             // Clamp target within bounds
             this.targetX = Phaser.Math.Clamp(this.targetX, this.minX, this.maxX);
             
             // Smooth lerp movement
             const smoothing = 0.15;
-            const newX = Phaser.Math.Linear(this.player.circle.x, this.targetX, smoothing);
+            const newX = Phaser.Math.Linear(this.player.car.x, this.targetX, smoothing);
             
-            this.player.circle.x = newX;
+            this.player.car.x = newX;
             this.player.text.x = newX;
         }
         
