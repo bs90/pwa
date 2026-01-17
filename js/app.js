@@ -121,11 +121,22 @@ function loadGame(gameName) {
     console.log(`✅ Game ${gameName} loaded`);
     currentGameScript = script;
   };
-  script.onerror = () => {
+  script.onerror = (event) => {
+    console.error('Script load error:', event);
     gameContent.innerHTML = `
-      <div style="text-align: center; padding: 40px;">
+      <div style="text-align: center; padding: 40px; color: white;">
         <h3>⚠️ Không thể tải game</h3>
-        <p>Vui lòng kiểm tra kết nối Internet</p>
+        <p>Game file: ${game.file}</p>
+        <p>Error: Script failed to load</p>
+        <p style="font-size: 12px; margin-top: 20px;">
+          Có thể do:<br>
+          - Không có internet (lần đầu)<br>
+          - CDN bị chặn<br>
+          - Safari không hỗ trợ ES modules
+        </p>
+        <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; font-size: 16px;">
+          Thử lại
+        </button>
       </div>
     `;
   };

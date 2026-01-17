@@ -4,6 +4,28 @@
  * Progressive difficulty
  */
 
+// Error handler for debugging
+window.addEventListener('error', (e) => {
+    console.error('Game Error:', e.error);
+    const gameContent = document.getElementById('gameContent');
+    if (gameContent) {
+        gameContent.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: white;">
+                <h3>🐛 Game Error</h3>
+                <p style="font-size: 14px; color: #ffcccc;">
+                    ${e.message || 'Unknown error'}
+                </p>
+                <pre style="font-size: 12px; text-align: left; background: rgba(0,0,0,0.5); padding: 10px; margin: 20px; overflow: auto;">
+${e.error?.stack || 'No stack trace'}
+                </pre>
+                <button onclick="location.reload()" style="padding: 10px 20px; font-size: 16px;">
+                    Reload
+                </button>
+            </div>
+        `;
+    }
+});
+
 import * as Phaser from 'https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.esm.js';
 
 class NumberGame extends Phaser.Scene {
@@ -348,6 +370,24 @@ class NumberGame extends Phaser.Scene {
     }
 }
 
+// Check if Phaser loaded
+if (typeof Phaser === 'undefined' || !Phaser.Game) {
+    console.error('Phaser failed to load from CDN');
+    const gameContent = document.getElementById('gameContent');
+    if (gameContent) {
+        gameContent.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: white;">
+                <h3>⚠️ Phaser library failed to load</h3>
+                <p>CDN may be blocked or offline</p>
+                <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; font-size: 16px;">
+                    Retry
+                </button>
+            </div>
+        `;
+    }
+    throw new Error('Phaser library not available');
+}
+
 // Phaser game config
 const config = {
     type: Phaser.AUTO,
@@ -363,4 +403,22 @@ const config = {
 };
 
 // Start game
-const game = new Phaser.Game(config);
+try {
+    console.log('Starting Phaser game...');
+    const game = new Phaser.Game(config);
+    console.log('✅ Game started successfully');
+} catch (error) {
+    console.error('Failed to start game:', error);
+    const gameContent = document.getElementById('gameContent');
+    if (gameContent) {
+        gameContent.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: white;">
+                <h3>⚠️ Game initialization failed</h3>
+                <p style="font-size: 14px;">${error.message}</p>
+                <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; font-size: 16px;">
+                    Retry
+                </button>
+            </div>
+        `;
+    }
+}
