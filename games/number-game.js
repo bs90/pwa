@@ -50,20 +50,20 @@ class NumberGame extends Phaser.Scene {
         // Player number (starting at 10)
         this.playerNumber = 10;
         this.playerX = width / 2;
-        this.playerY = height * 0.85;
+        this.playerY = height * 0.93; // Very low - leave space for finger at bottom
         
-        // Player car sprite
-        this.playerCar = this.add.sprite(this.playerX, this.playerY - 30, 'car');
-        this.playerCar.setScale(0.8); // Scale down a bit
+        // Player car sprite - bigger and lower
+        this.playerCar = this.add.sprite(this.playerX, this.playerY - 40, 'car');
+        this.playerCar.setScale(1.4); // Bigger (was 0.8)
         
         // Player number text below car
-        this.playerText = this.add.text(this.playerX, this.playerY + 30, this.playerNumber.toString(), {
-            fontSize: '56px',
+        this.playerText = this.add.text(this.playerX, this.playerY + 35, this.playerNumber.toString(), {
+            fontSize: '60px',
             fontFamily: 'Arial',
             color: '#FFD700',
             fontStyle: 'bold',
             stroke: '#000000',
-            strokeThickness: 5
+            strokeThickness: 6
         });
         this.playerText.setOrigin(0.5);
         
@@ -242,7 +242,7 @@ class NumberGame extends Phaser.Scene {
         
         // Start from horizon
         const startY = height * 0.15;
-        const endY = height * 0.85;
+        const endY = height * 0.93; // Match new player Y position
         const startScale = 0.1;
         const endScale = 1.0;
         
@@ -284,13 +284,13 @@ class NumberGame extends Phaser.Scene {
             duration: 3000,
             ease: 'Cubic.easeIn',
             onComplete: () => {
-                // Check collision with player
+                // Check collision with player car (use car position)
                 const distance = Phaser.Math.Distance.Between(
                     text.x, text.y,
-                    this.playerX, this.playerY
+                    this.playerX, this.playerY - 40 // Car is at playerY - 40
                 );
                 
-                if (distance < 100 && !this.gameOver) {
+                if (distance < 110 && !this.gameOver) { // Bigger collision radius for bigger car
                     const objNumber = text.getData('value');
                     
                     if (objNumber < this.playerNumber) {
