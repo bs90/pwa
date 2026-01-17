@@ -1,6 +1,6 @@
 // Service Worker cho PWA Minigame Collection
 // Version và cache names
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE_NAME = `minigame-pwa-${CACHE_VERSION}`;
 const OFFLINE_URL = './offline.html';
 
@@ -55,11 +55,11 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event - Cache-first strategy với network fallback
 self.addEventListener('fetch', (event) => {
-  // Skip cross-origin requests
-  if (!event.request.url.startsWith(self.location.origin)) {
-    return;
-  }
-
+  const url = new URL(event.request.url);
+  
+  // Allow CDN requests (Phaser from jsdelivr)
+  const isCDN = url.hostname === 'cdn.jsdelivr.net';
+  
   // Skip non-GET requests
   if (event.request.method !== 'GET') {
     return;
@@ -78,18 +78,21 @@ self.addEventListener('fetch', (event) => {
         return fetch(event.request)
           .then((response) => {
             // Check if valid response
-            if (!response || response.status !== 200 || response.type !== 'basic') {
+            if (!response || response.status !== 200) {
               return response;
             }
+            
+            // Only cache same-origin and CDN resources
+            if (url.origin === self.location.origin || isCDN) {
+              // Clone response để cache và return
+              const responseToCache = response.clone();
 
-            // Clone response để cache và return
-            const responseToCache = response.clone();
-
-            caches.open(CACHE_NAME)
-              .then((cache) => {
-                cache.put(event.request, responseToCache);
-                console.log('[Service Worker] Cached new resource:', event.request.url);
-              });
+              caches.open(CACHE_NAME)
+                .then((cache) => {
+                  cache.put(event.request, responseToCache);
+                  console.log('[Service Worker] Cached new resource:', event.request.url);
+                });
+            }
 
             return response;
           })

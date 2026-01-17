@@ -5,7 +5,7 @@
  * Các vật thể chạy về phía player tạo hiệu ứng depth
  */
 
-import * as Phaser from '../node_modules/phaser/dist/phaser.esm.js';
+import * as Phaser from 'https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.esm.js';
 
 class NumberGame extends Phaser.Scene {
     constructor() {
