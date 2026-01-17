@@ -7,26 +7,16 @@
 
 :root {
     --primary-color: #2196F3;
-    --secondary-color: #FFC107;
-    --success-color: #4CAF50;
-    --danger-color: #f44336;
-    --dark-color: #212121;
+    --bg-color: #1c1c1e;
     --light-color: #ffffff;
-    --gray-color: #757575;
-    --bg-color: #f5f5f5;
-    --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-        sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-color: var(--bg-color);
-    color: var(--dark-color);
-    line-height: 1.6;
+    background: linear-gradient(135deg, #1c1c1e 0%, #2c2c2e 100%);
+    color: var(--light-color);
     margin: 0;
     padding: 0;
     overflow: hidden;
@@ -45,119 +35,76 @@ body {
     overflow: hidden;
 }
 
-/* ===== Header ===== */
+/* ===== Header - Ẩn các thành phần không cần ===== */
 .header {
-    text-align: center;
-    padding: 30px 20px;
-    background: linear-gradient(135deg, var(--primary-color), #1976D2);
-    color: var(--light-color);
-    box-shadow: var(--shadow);
-    flex-shrink: 0;
+    display: none;
 }
 
-.header h1 {
-    font-size: 2.5rem;
-    margin-bottom: 10px;
-}
-
-.subtitle {
-    font-size: 1.2rem;
-    opacity: 0.9;
-}
-
-/* ===== Install Banner ===== */
 .install-banner {
-    background: linear-gradient(135deg, var(--secondary-color), #FFA000);
-    color: var(--dark-color);
-    padding: 15px 20px;
-    animation: slideDown 0.3s ease-out;
-    flex-shrink: 0;
+    display: none !important;
 }
 
-@keyframes slideDown {
-    from {
-        transform: translateY(-100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
-
-.banner-content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-}
-
-.banner-content span {
-    flex: 1;
-    font-size: 1rem;
-}
-
-/* ===== Status Bar ===== */
 .status-bar {
-    padding: 10px 20px;
-    text-align: center;
-    font-weight: 500;
-    font-size: 1rem;
-    transition: all 0.3s ease;
-    flex-shrink: 0;
+    display: none;
 }
 
-.status-bar.online {
-    background-color: #e8f5e9;
-    color: var(--success-color);
-}
-
-.status-bar.offline {
-    background-color: #ffebee;
-    color: var(--danger-color);
-}
-
-/* ===== Game List ===== */
+/* ===== Game List - iPad Home Screen Style ===== */
 .game-list {
     flex: 1;
-    display: flex;
-    flex-direction: column;
-    padding: 20px;
-    gap: 20px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 40px;
+    padding: 80px 60px;
+    align-content: start;
     overflow-y: auto;
 }
 
 .game-card {
-    background: var(--light-color);
-    padding: 40px;
-    border-radius: 20px;
-    box-shadow: var(--shadow);
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    box-shadow: none;
     text-align: center;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
     cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
 }
 
 .game-card:active {
-    transform: scale(0.98);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    transform: scale(0.9);
 }
 
 .game-icon {
-    font-size: 4rem;
-    margin-bottom: 15px;
+    width: 120px;
+    height: 120px;
+    font-size: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 26px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    transition: all 0.2s ease;
+}
+
+.game-card:active .game-icon {
+    transform: scale(0.95);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .game-card h3 {
-    font-size: 1.8rem;
-    margin-bottom: 10px;
-    color: var(--dark-color);
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--light-color);
+    margin: 0;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 .game-card p {
-    color: var(--gray-color);
-    margin-bottom: 25px;
-    font-size: 1.1rem;
-    line-height: 1.6;
+    display: none; /* Ẩn description */
 }
 
 /* ===== Buttons ===== */
@@ -166,52 +113,39 @@ button {
     cursor: pointer;
     border: none;
     border-radius: 12px;
-    padding: 16px 32px;
-    font-size: 1.2rem;
     font-weight: 600;
     transition: all 0.2s ease;
     outline: none;
 }
 
 .btn-play {
-    background: var(--primary-color);
-    color: var(--light-color);
-    width: 100%;
-}
-
-.btn-play:active {
-    background: #1976D2;
-    transform: scale(0.98);
+    display: none; /* Ẩn button, click vào card */
 }
 
 .btn-install {
-    background: var(--light-color);
-    color: var(--dark-color);
-    padding: 10px 20px;
-    font-size: 1rem;
+    display: none;
 }
 
 .btn-dismiss {
-    background: transparent;
-    color: var(--dark-color);
-    padding: 10px 14px;
-    font-size: 1.3rem;
+    display: none;
 }
 
 .btn-back {
     position: fixed;
-    top: 20px;
-    left: 20px;
-    background: rgba(117, 117, 117, 0.9);
+    top: 40px;
+    left: 40px;
+    background: rgba(60, 60, 67, 0.8);
     color: var(--light-color);
-    padding: 14px 28px;
-    font-size: 1.1rem;
+    padding: 16px 32px;
+    font-size: 18px;
     z-index: 2000;
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
 .btn-back:active {
-    background: rgba(97, 97, 97, 0.9);
+    background: rgba(50, 50, 57, 0.9);
     transform: scale(0.95);
 }
 
@@ -239,7 +173,7 @@ button {
 }
 
 .game-header {
-    display: none; /* Ẩn hoàn toàn, dùng btn-back riêng */
+    display: none;
 }
 
 .game-content {
@@ -258,20 +192,7 @@ button {
 
 /* ===== Footer ===== */
 .footer {
-    text-align: center;
-    padding: 20px;
-    color: var(--gray-color);
-    font-size: 0.95rem;
-    flex-shrink: 0;
-}
-
-.footer p {
-    margin: 5px 0;
-}
-
-.version {
-    font-size: 0.85rem;
-    opacity: 0.7;
+    display: none;
 }
 
 /* ===== Offline Page ===== */
@@ -281,37 +202,43 @@ button {
     justify-content: center;
     width: 100vw;
     height: 100vh;
+    background: linear-gradient(135deg, #1c1c1e 0%, #2c2c2e 100%);
 }
 
 .offline-content {
     text-align: center;
-    background: var(--light-color);
-    padding: 50px 40px;
-    border-radius: 20px;
-    box-shadow: var(--shadow);
+    background: rgba(44, 44, 46, 0.8);
+    padding: 60px 50px;
+    border-radius: 30px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
     max-width: 90%;
+    backdrop-filter: blur(20px);
 }
 
 .offline-icon {
     font-size: 5rem;
     margin-bottom: 20px;
-    opacity: 0.5;
+    opacity: 0.6;
 }
 
 .offline-content h1 {
     font-size: 2rem;
     margin-bottom: 15px;
-    color: var(--dark-color);
+    color: var(--light-color);
 }
 
 .offline-content p {
-    color: var(--gray-color);
+    color: rgba(255, 255, 255, 0.7);
     margin-bottom: 15px;
     font-size: 1.2rem;
 }
 
 .offline-content button {
     margin-top: 15px;
+    background: var(--primary-color);
+    color: var(--light-color);
+    padding: 16px 32px;
+    font-size: 18px;
 }
 
 /* ===== Utility Classes ===== */
@@ -319,21 +246,36 @@ button {
     display: none !important;
 }
 
-.text-center {
-    text-align: center;
-}
-
-/* Responsive cho màn hình nhỏ hơn */
-@media (max-width: 600px) {
-    .header h1 {
-        font-size: 2rem;
-    }
-    
-    .game-card {
-        padding: 30px;
+/* Responsive cho màn hình nhỏ */
+@media (max-width: 800px) {
+    .game-list {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 30px;
+        padding: 60px 40px;
     }
     
     .game-icon {
-        font-size: 3rem;
+        width: 100px;
+        height: 100px;
+        font-size: 60px;
+    }
+}
+
+@media (max-width: 600px) {
+    .game-list {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        padding: 40px 30px;
+    }
+    
+    .game-icon {
+        width: 80px;
+        height: 80px;
+        font-size: 50px;
+        border-radius: 18px;
+    }
+    
+    .game-card h3 {
+        font-size: 12px;
     }
 }

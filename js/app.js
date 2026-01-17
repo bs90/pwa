@@ -143,10 +143,10 @@ backBtn?.addEventListener('click', () => {
   gameContent.innerHTML = '';
 });
 
-// Handle game card clicks
-document.querySelectorAll('.btn-play').forEach(button => {
-  button.addEventListener('click', (e) => {
-    const gameName = e.target.getAttribute('data-game');
+// Handle game card clicks (click vào toàn bộ card)
+document.querySelectorAll('.game-card').forEach(card => {
+  card.addEventListener('click', (e) => {
+    const gameName = card.getAttribute('data-game');
     if (gameName) {
       loadGame(gameName);
     }

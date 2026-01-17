@@ -1,6 +1,6 @@
 /**
- * Touch Gestures Demo Game - Full Canvas Version
- * Tất cả UI render trên canvas, responsive theo màn hình
+ * Touch Gestures Demo Game - Simple Canvas
+ * Chỉ có canvas tương tác, không có UI phụ
  */
 
 (function() {
@@ -24,8 +24,7 @@
     
     // Game state
     const state = {
-        stats: { taps: 0, swipes: 0, pinches: 0, rotates: 0 },
-        message: { text: 'Hãy thử các cử chỉ!', emoji: '👆', time: 0 },
+        message: { text: 'Try gestures!', emoji: '👆', time: 0 },
         circle: {
             x: 0,
             y: 0,
@@ -46,7 +45,7 @@
     
     // Initialize circle position
     state.circle.x = canvas.width / 2;
-    state.circle.y = canvas.height / 2.5;
+    state.circle.y = canvas.height / 2;
     
     // Utils
     function showMessage(text, emoji) {
@@ -119,10 +118,6 @@
                 const scale = distance / state.touch.lastDistance;
                 state.circle.scale *= scale;
                 state.circle.scale = Math.max(0.5, Math.min(state.circle.scale, 3));
-                
-                if (Math.abs(scale - 1) > 0.02) {
-                    state.stats.pinches++;
-                }
             }
             state.touch.lastDistance = distance;
             
@@ -132,7 +127,6 @@
                 const diff = angle - state.touch.lastAngle;
                 if (Math.abs(diff) > 2 && Math.abs(diff) < 180) {
                     state.circle.rotation += diff;
-                    state.stats.rotates++;
                 }
             }
             state.touch.lastAngle = angle;
@@ -167,21 +161,20 @@
                     addParticles(pos.x, pos.y, 15, '#FFD700');
                 }
                 
-                state.stats.taps++;
                 state.touch.lastTap = now;
                 
             } else if (distance > 50) {
                 // Swipe
                 const angle = Math.atan2(dy, dx) * 180 / Math.PI;
                 let direction;
-                const moveDistance = Math.min(100, canvas.width * 0.1);
+                const moveDistance = Math.min(120, canvas.width * 0.15);
                 
                 if (angle > -45 && angle <= 45) {
                     direction = 'RIGHT ➡️';
                     state.circle.x = Math.min(state.circle.x + moveDistance, canvas.width - state.circle.radius * 2);
                 } else if (angle > 45 && angle <= 135) {
                     direction = 'DOWN ⬇️';
-                    state.circle.y = Math.min(state.circle.y + moveDistance, canvas.height * 0.6);
+                    state.circle.y = Math.min(state.circle.y + moveDistance, canvas.height - state.circle.radius * 2);
                 } else if (angle < -45 && angle >= -135) {
                     direction = 'UP ⬆️';
                     state.circle.y = Math.max(state.circle.y - moveDistance, state.circle.radius * 2);
@@ -192,7 +185,6 @@
                 
                 showMessage(`Swipe ${direction}`, '👉');
                 addParticles(pos.x, pos.y, 20, '#4CAF50');
-                state.stats.swipes++;
             }
         }
         
@@ -220,7 +212,6 @@
             if (distance < 15) {
                 showMessage('Click!', '🖱️');
                 addParticles(pos.x, pos.y, 15, '#FFD700');
-                state.stats.taps++;
             }
         }
         mouseDown = false;
@@ -245,9 +236,12 @@
         
         // Circle
         ctx.fillStyle = c.color;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+        ctx.shadowBlur = 20;
         ctx.beginPath();
         ctx.arc(0, 0, c.radius, 0, Math.PI * 2);
         ctx.fill();
+        ctx.shadowBlur = 0;
         
         // Face
         ctx.fillStyle = '#000';
@@ -269,6 +263,7 @@
         state.particles = state.particles.filter(p => {
             p.x += p.vx;
             p.y += p.vy;
+            p.vy += 0.2; // gravity
             p.life--;
             
             ctx.globalAlpha = p.life / 60;
@@ -284,112 +279,32 @@
     
     function drawMessage() {
         if (state.message.time > 0) {
-            const fontSize = Math.min(canvas.width, canvas.height) * 0.08;
+            const fontSize = Math.min(canvas.width, canvas.height) * 0.1;
+            
+            // Emoji
             ctx.font = `${fontSize}px Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(state.message.emoji, canvas.width / 2, canvas.height * 0.15);
+            ctx.fillText(state.message.emoji, canvas.width / 2, canvas.height * 0.25);
             
-            ctx.font = `bold ${fontSize * 0.4}px Arial`;
+            // Text with shadow
+            ctx.font = `bold ${fontSize * 0.5}px Arial`;
             ctx.fillStyle = '#ffffff';
-            ctx.strokeStyle = '#2196F3';
-            ctx.lineWidth = 3;
-            ctx.strokeText(state.message.text, canvas.width / 2, canvas.height * 0.22);
-            ctx.fillText(state.message.text, canvas.width / 2, canvas.height * 0.22);
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            ctx.shadowBlur = 10;
+            ctx.fillText(state.message.text, canvas.width / 2, canvas.height * 0.35);
+            ctx.shadowBlur = 0;
             
             state.message.time--;
         } else {
-            // Default instruction
+            // Instruction text
             const fontSize = Math.min(canvas.width, canvas.height) * 0.04;
             ctx.font = `${fontSize}px Arial`;
             ctx.textAlign = 'center';
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText('👆 Thử các cử chỉ trên màn hình!', canvas.width / 2, canvas.height * 0.08);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.fillText('👆 Tap, Double Tap, Long Press, Swipe, Pinch, Rotate', canvas.width / 2, canvas.height * 0.95);
         }
     }
-    
-    function drawStats() {
-        const y = canvas.height * 0.75;
-        const boxHeight = canvas.height * 0.2;
-        const boxPadding = canvas.width * 0.05;
-        
-        // Background
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-        ctx.fillRect(boxPadding, y, canvas.width - boxPadding * 2, boxHeight);
-        
-        // Stats
-        const stats = [
-            { label: 'Taps', value: state.stats.taps, color: '#2196F3' },
-            { label: 'Swipes', value: state.stats.swipes, color: '#4CAF50' },
-            { label: 'Pinches', value: state.stats.pinches, color: '#FF9800' },
-            { label: 'Rotates', value: state.stats.rotates, color: '#9C27B0' }
-        ];
-        
-        const cellWidth = (canvas.width - boxPadding * 2) / 4;
-        const fontSize = Math.min(canvas.width, canvas.height) * 0.035;
-        const numSize = fontSize * 1.5;
-        
-        stats.forEach((stat, i) => {
-            const x = boxPadding + cellWidth * (i + 0.5);
-            
-            ctx.font = `${fontSize}px Arial`;
-            ctx.fillStyle = '#666';
-            ctx.textAlign = 'center';
-            ctx.fillText(stat.label, x, y + boxHeight * 0.35);
-            
-            ctx.font = `bold ${numSize}px Arial`;
-            ctx.fillStyle = stat.color;
-            ctx.fillText(stat.value.toString(), x, y + boxHeight * 0.7);
-        });
-    }
-    
-    function drawResetButton() {
-        const btnWidth = canvas.width * 0.3;
-        const btnHeight = canvas.height * 0.06;
-        const btnX = (canvas.width - btnWidth) / 2;
-        const btnY = canvas.height * 0.96 - btnHeight;
-        
-        // Button
-        ctx.fillStyle = '#f44336';
-        ctx.fillRect(btnX, btnY, btnWidth, btnHeight);
-        
-        // Text
-        const fontSize = Math.min(canvas.width, canvas.height) * 0.035;
-        ctx.font = `bold ${fontSize}px Arial`;
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('🔄 Reset', canvas.width / 2, btnY + btnHeight / 2);
-        
-        // Store button bounds for click detection
-        state.resetButton = { x: btnX, y: btnY, width: btnWidth, height: btnHeight };
-    }
-    
-    // Handle reset button click
-    canvas.addEventListener('click', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        
-        if (state.resetButton) {
-            const btn = state.resetButton;
-            if (x >= btn.x && x <= btn.x + btn.width && 
-                y >= btn.y && y <= btn.y + btn.height) {
-                // Reset
-                state.stats = { taps: 0, swipes: 0, pinches: 0, rotates: 0 };
-                state.circle = {
-                    x: canvas.width / 2,
-                    y: canvas.height / 2.5,
-                    radius: 80,
-                    color: '#FFD700',
-                    scale: 1,
-                    rotation: 0
-                };
-                state.particles = [];
-                showMessage('Reset!', '🔄');
-            }
-        }
-    });
     
     // Animation loop
     function animate() {
@@ -397,8 +312,6 @@
         drawCircle();
         drawParticles();
         drawMessage();
-        drawStats();
-        drawResetButton();
         
         requestAnimationFrame(animate);
     }
