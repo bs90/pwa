@@ -33,6 +33,11 @@ class NumberGame extends Phaser.Scene {
         super({ key: 'NumberGame' });
     }
 
+    preload() {
+        // Load car image
+        this.load.image('car', '../images/game/car.png');
+    }
+
     create() {
         const { width, height } = this.scale;
         
@@ -47,14 +52,18 @@ class NumberGame extends Phaser.Scene {
         this.playerX = width / 2;
         this.playerY = height * 0.85;
         
-        // Player number text only (no sprite)
-        this.playerText = this.add.text(this.playerX, this.playerY, this.playerNumber.toString(), {
-            fontSize: '72px',
+        // Player car sprite
+        this.playerCar = this.add.sprite(this.playerX, this.playerY - 30, 'car');
+        this.playerCar.setScale(0.8); // Scale down a bit
+        
+        // Player number text below car
+        this.playerText = this.add.text(this.playerX, this.playerY + 30, this.playerNumber.toString(), {
+            fontSize: '56px',
             fontFamily: 'Arial',
             color: '#FFD700',
             fontStyle: 'bold',
             stroke: '#000000',
-            strokeThickness: 6
+            strokeThickness: 5
         });
         this.playerText.setOrigin(0.5);
         
@@ -362,6 +371,8 @@ class NumberGame extends Phaser.Scene {
             const smoothing = 0.15;
             this.playerX = Phaser.Math.Linear(this.playerX, this.targetX, smoothing);
             
+            // Move both car and text
+            this.playerCar.x = this.playerX;
             this.playerText.x = this.playerX;
         }
         
