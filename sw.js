@@ -1,6 +1,6 @@
 // Service Worker cho PWA Minigame Collection
 // Version và cache names
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const CACHE_NAME = `minigame-pwa-${CACHE_VERSION}`;
 const OFFLINE_URL = './offline.html';
 
@@ -53,7 +53,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - Cache-first strategy với network fallback
+// Fetch event - Network-first for game files, cache-first for static assets
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   
@@ -65,45 +65,88 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request)
-      .then((cachedResponse) => {
-        // Return cached response if found
-        if (cachedResponse) {
-          console.log('[Service Worker] Returning from cache:', event.request.url);
-          return cachedResponse;
-        }
+  // Determine if this is a game file or CDN resource
+  const isGameOrCDN = url.pathname.includes('/games/') || isCDN;
 
-        // Fetch from network
-        return fetch(event.request)
-          .then((response) => {
-            // Check if valid response
-            if (!response || response.status !== 200) {
-              return response;
+  if (isGameOrCDN) {
+    // Network-first strategy for game files and CDN
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Check if valid response
+          if (!response || response.status !== 200) {
+            // Try cache as fallback
+            return caches.match(event.request).then(cached => cached || response);
+          }
+          
+          // Clone response to cache and return
+          const responseToCache = response.clone();
+          
+          caches.open(CACHE_NAME)
+            .then((cache) => {
+              cache.put(event.request, responseToCache);
+              console.log('[Service Worker] Cached new resource:', event.request.url);
+            });
+
+          return response;
+        })
+        .catch(() => {
+          // Network failed - try cache
+          console.log('[Service Worker] Network failed, trying cache:', event.request.url);
+          return caches.match(event.request).then(cached => {
+            if (cached) {
+              return cached;
             }
-            
-            // Only cache same-origin and CDN resources
-            if (url.origin === self.location.origin || isCDN) {
-              // Clone response để cache và return
-              const responseToCache = response.clone();
-
-              caches.open(CACHE_NAME)
-                .then((cache) => {
-                  cache.put(event.request, responseToCache);
-                  console.log('[Service Worker] Cached new resource:', event.request.url);
-                });
-            }
-
-            return response;
-          })
-          .catch(() => {
-            // Network failed - return offline page cho navigation requests
+            // If navigation request, show offline page
             if (event.request.mode === 'navigate') {
               return caches.match(OFFLINE_URL);
             }
+            // Otherwise return error
+            return new Response('Network error', { status: 503 });
           });
-      })
-  );
+        })
+    );
+  } else {
+    // Cache-first strategy for static assets (HTML, CSS, JS, images)
+    event.respondWith(
+      caches.match(event.request)
+        .then((cachedResponse) => {
+          // Return cached response if found
+          if (cachedResponse) {
+            console.log('[Service Worker] Returning from cache:', event.request.url);
+            return cachedResponse;
+          }
+
+          // Fetch from network
+          return fetch(event.request)
+            .then((response) => {
+              // Check if valid response
+              if (!response || response.status !== 200) {
+                return response;
+              }
+              
+              // Cache same-origin resources
+              if (url.origin === self.location.origin) {
+                const responseToCache = response.clone();
+
+                caches.open(CACHE_NAME)
+                  .then((cache) => {
+                    cache.put(event.request, responseToCache);
+                    console.log('[Service Worker] Cached new resource:', event.request.url);
+                  });
+              }
+
+              return response;
+            })
+            .catch(() => {
+              // Network failed - return offline page for navigation
+              if (event.request.mode === 'navigate') {
+                return caches.match(OFFLINE_URL);
+              }
+            });
+        })
+    );
+  }
 });
 
 // Background sync để cache game assets
