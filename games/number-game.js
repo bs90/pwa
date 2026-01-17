@@ -1,8 +1,7 @@
 /**
  * すうじげーむ (Number Game)
- * Demo: 2D Pseudo-3D Perspective
- * Player là vòng tròn có số, đứng yên
- * Các vật thể chạy về phía player tạo hiệu ứng depth
+ * Pure number game: collect smaller numbers, avoid larger numbers
+ * Progressive difficulty
  */
 
 import * as Phaser from 'https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.esm.js';
@@ -18,94 +17,81 @@ class NumberGame extends Phaser.Scene {
         // Background gradient
         this.cameras.main.setBackgroundColor('#667eea');
         
-        // Draw perspective grid (road effect)
+        // Draw perspective road
         this.drawPerspectiveGrid();
         
-        // Player car with number
-        this.player = {
-            number: 1,
-            car: null,
-            text: null
-        };
+        // Player number (starting at 10)
+        this.playerNumber = 10;
+        this.playerX = width / 2;
+        this.playerY = height * 0.85;
         
-        // Create player at bottom center (closer to bottom, bigger)
-        const playerY = height * 0.85;
-        
-        // Draw player car (simple top-down view)
-        const carGraphics = this.add.graphics();
-        
-        // Car body (blue)
-        carGraphics.fillStyle(0x3498db, 1);
-        carGraphics.fillRoundedRect(-40, -60, 80, 120, 10);
-        
-        // Car windows (darker blue)
-        carGraphics.fillStyle(0x2c3e50, 1);
-        carGraphics.fillRoundedRect(-30, -40, 60, 35, 5); // Front window
-        carGraphics.fillRoundedRect(-30, 10, 60, 35, 5);  // Back window
-        
-        // Car outline
-        carGraphics.lineStyle(3, 0x000000, 1);
-        carGraphics.strokeRoundedRect(-40, -60, 80, 120, 10);
-        
-        // Wheels (black circles)
-        carGraphics.fillStyle(0x000000, 1);
-        carGraphics.fillCircle(-35, -45, 8);  // Front left
-        carGraphics.fillCircle(35, -45, 8);   // Front right
-        carGraphics.fillCircle(-35, 45, 8);   // Back left
-        carGraphics.fillCircle(35, 45, 8);    // Back right
-        
-        carGraphics.generateTexture('playerCar', 100, 140);
-        carGraphics.destroy();
-        
-        this.player.car = this.add.sprite(width / 2, playerY, 'playerCar');
-        
-        // Add number text on car (bigger font, white for contrast)
-        this.player.text = this.add.text(width / 2, playerY - 10, '1', {
-            fontSize: '52px',
+        // Player number text only (no sprite)
+        this.playerText = this.add.text(this.playerX, this.playerY, this.playerNumber.toString(), {
+            fontSize: '72px',
             fontFamily: 'Arial',
-            color: '#ffffff',
+            color: '#FFD700',
             fontStyle: 'bold',
             stroke: '#000000',
-            strokeThickness: 4
+            strokeThickness: 6
         });
-        this.player.text.setOrigin(0.5);
+        this.playerText.setOrigin(0.5);
         
-        // Array to hold incoming objects
+        // Game state
         this.objects = [];
+        this.gameOver = false;
+        this.score = 0;
+        this.objectsCollected = 0; // For difficulty progression
         
-        // Spawn objects periodically (slower: 2s → 4s)
-        this.time.addEvent({
-            delay: 4000,
+        // Difficulty settings
+        this.spawnDelay = 3000;
+        this.minNumber = 1;
+        this.maxNumber = 15;
+        
+        // Spawn objects periodically
+        this.spawnTimer = this.time.addEvent({
+            delay: this.spawnDelay,
             callback: this.spawnObject,
             callbackScope: this,
             loop: true
         });
         
         // Instructions
-        this.add.text(width / 2, 50, 'すうじげーむ Demo', {
+        this.titleText = this.add.text(width / 2, 50, 'すうじげーむ', {
             fontSize: '32px',
             fontFamily: 'Arial',
             color: '#ffffff',
             fontStyle: 'bold'
         }).setOrigin(0.5);
         
-        this.add.text(width / 2, 90, 'ゆびでスライドしてうごかすよ!', {
+        this.instructionText = this.add.text(width / 2, 90, 'ちいさいかずをあつめよう!', {
             fontSize: '18px',
             fontFamily: 'Arial',
             color: '#ffffff'
         }).setOrigin(0.5);
+        
+        // Score display
+        this.scoreText = this.add.text(20, 130, 'スコア: 0', {
+            fontSize: '24px',
+            fontFamily: 'Arial',
+            color: '#ffffff',
+            fontStyle: 'bold'
+        });
         
         // Touch controls - drag to move
         this.isDragging = false;
         this.targetX = width / 2;
         
         this.input.on('pointerdown', (pointer) => {
+            if (this.gameOver) {
+                this.scene.restart();
+                return;
+            }
             this.isDragging = true;
             this.targetX = pointer.x;
         });
         
         this.input.on('pointermove', (pointer) => {
-            if (this.isDragging) {
+            if (this.isDragging && !this.gameOver) {
                 this.targetX = pointer.x;
             }
         });
@@ -185,126 +171,180 @@ class NumberGame extends Phaser.Scene {
     }
     
     spawnObject() {
+        if (this.gameOver) return;
+        
         const { width, height } = this.scale;
         
-        // Random type: circle with number or obstacle
-        const isNumber = Math.random() > 0.5;
-        const number = Phaser.Math.Between(1, 5);
+        // Progressive difficulty: increase max number range
+        if (this.objectsCollected > 10) {
+            this.maxNumber = 20;
+        }
+        if (this.objectsCollected > 20) {
+            this.maxNumber = 30;
+        }
+        if (this.objectsCollected > 30) {
+            this.maxNumber = 50;
+        }
         
-        // Start from horizon (small) - closer to title
+        // Spawn faster over time
+        if (this.objectsCollected > 15 && this.spawnDelay > 2000) {
+            this.spawnDelay = 2000;
+            this.spawnTimer.delay = this.spawnDelay;
+        }
+        
+        // Generate random number with higher chance of numbers near player's number
+        let number;
+        const rand = Math.random();
+        
+        if (rand < 0.4) {
+            // 40% chance: smaller than player (easy to collect)
+            number = Phaser.Math.Between(this.minNumber, Math.max(1, this.playerNumber - 2));
+        } else if (rand < 0.7) {
+            // 30% chance: around player's number (±3)
+            const min = Math.max(this.minNumber, this.playerNumber - 3);
+            const max = Math.min(this.maxNumber, this.playerNumber + 3);
+            number = Phaser.Math.Between(min, max);
+        } else {
+            // 30% chance: larger than player (dangerous)
+            number = Phaser.Math.Between(this.playerNumber + 1, this.maxNumber);
+        }
+        
+        // Start from horizon
         const startY = height * 0.15;
         const endY = height * 0.85;
         const startScale = 0.1;
         const endScale = 1.0;
         
-        // Random X position
+        // Random lane
         const lanes = [-150, 0, 150];
         const randomLane = Phaser.Utils.Array.GetRandom(lanes);
         const startX = width / 2 + randomLane * startScale;
         const endX = width / 2 + randomLane;
         
-        let obj;
-        let text = null;
-        
-        if (isNumber) {
-            // Create number circle
-            const graphics = this.add.graphics();
-            graphics.fillStyle(0x4CAF50, 1);
-            graphics.fillCircle(0, 0, 30);
-            graphics.lineStyle(3, 0x000000, 1);
-            graphics.strokeCircle(0, 0, 30);
-            graphics.generateTexture('numberCircle_' + this.objects.length, 60, 60);
-            graphics.destroy();
-            
-            obj = this.add.sprite(startX, startY, 'numberCircle_' + this.objects.length);
-            obj.setScale(startScale);
-            
-            // Add number text
-            text = this.add.text(startX, startY, number.toString(), {
-                fontSize: '24px',
-                fontFamily: 'Arial',
-                color: '#ffffff',
-                fontStyle: 'bold'
-            });
-            text.setOrigin(0.5);
-            text.setScale(startScale);
-            
-            obj.isNumber = true;
-            obj.value = number;
+        // Determine color based on comparison with player
+        let color;
+        if (number < this.playerNumber) {
+            color = 0x4CAF50; // Green - good to collect
+        } else if (number === this.playerNumber) {
+            color = 0xFFA726; // Orange - neutral
         } else {
-            // Create obstacle (red square)
-            const graphics = this.add.graphics();
-            graphics.fillStyle(0xFF6B6B, 1);
-            graphics.fillRect(-25, -25, 50, 50);
-            graphics.lineStyle(3, 0x000000, 1);
-            graphics.strokeRect(-25, -25, 50, 50);
-            graphics.generateTexture('obstacle_' + this.objects.length, 50, 50);
-            graphics.destroy();
-            
-            obj = this.add.sprite(startX, startY, 'obstacle_' + this.objects.length);
-            obj.setScale(startScale);
-            
-            obj.isNumber = false;
+            color = 0xFF5252; // Red - dangerous
         }
         
-        // Animate toward player (pseudo 3D effect, slower: 2s → 4s)
+        // Create number text (no circle, just text)
+        const text = this.add.text(startX, startY, number.toString(), {
+            fontSize: '48px',
+            fontFamily: 'Arial',
+            color: '#ffffff',
+            fontStyle: 'bold',
+            stroke: Phaser.Display.Color.IntegerToColor(color).rgba,
+            strokeThickness: 8
+        });
+        text.setOrigin(0.5);
+        text.setScale(startScale);
+        text.setData('value', number);
+        
+        // Animate toward player
         this.tweens.add({
-            targets: obj,
+            targets: text,
             x: endX,
             y: endY,
             scale: endScale,
-            duration: 4000,
+            duration: 3000,
             ease: 'Cubic.easeIn',
             onComplete: () => {
                 // Check collision with player
                 const distance = Phaser.Math.Distance.Between(
-                    obj.x, obj.y,
-                    this.player.car.x, this.player.car.y
+                    text.x, text.y,
+                    this.playerX, this.playerY
                 );
                 
-                if (distance < 80) {
-                    if (obj.isNumber) {
-                        // Collect number
-                        this.player.number += obj.value;
-                        this.player.text.setText(this.player.number.toString());
+                if (distance < 100 && !this.gameOver) {
+                    const objNumber = text.getData('value');
+                    
+                    if (objNumber < this.playerNumber) {
+                        // Collect: add to player number
+                        this.playerNumber += objNumber;
+                        this.score += objNumber;
+                        this.objectsCollected++;
+                    } else {
+                        // Hit larger number: lose half (rounded up)
+                        const penalty = Math.ceil(this.playerNumber / 2);
+                        this.playerNumber -= penalty;
+                        this.score = Math.max(0, this.score - penalty);
+                        
+                        // Check game over
+                        if (this.playerNumber <= 0) {
+                            this.endGame();
+                        }
                     }
+                    
+                    // Update display
+                    this.playerText.setText(this.playerNumber.toString());
+                    this.scoreText.setText('スコア: ' + this.score);
                 }
                 
-                obj.destroy();
-                if (text) text.destroy();
+                text.destroy();
             }
         });
         
-        if (text) {
-            this.tweens.add({
-                targets: text,
-                x: endX,
-                y: endY,
-                scale: endScale,
-                duration: 4000,
-                ease: 'Cubic.easeIn'
-            });
-        }
+        this.objects.push(text);
+    }
+    
+    endGame() {
+        this.gameOver = true;
+        this.spawnTimer.destroy();
         
-        this.objects.push({ sprite: obj, text: text });
+        const { width, height } = this.scale;
+        
+        // Game Over overlay
+        const overlay = this.add.graphics();
+        overlay.fillStyle(0x000000, 0.7);
+        overlay.fillRect(0, 0, width, height);
+        
+        // Game Over text
+        this.add.text(width / 2, height / 2 - 80, 'ゲームオーバー', {
+            fontSize: '64px',
+            fontFamily: 'Arial',
+            color: '#FF5252',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 8
+        }).setOrigin(0.5);
+        
+        // Final score
+        this.add.text(width / 2, height / 2, 'スコア: ' + this.score, {
+            fontSize: '48px',
+            fontFamily: 'Arial',
+            color: '#ffffff',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+        
+        // Restart instruction
+        this.add.text(width / 2, height / 2 + 80, 'タップしてもういちど!', {
+            fontSize: '24px',
+            fontFamily: 'Arial',
+            color: '#ffffff'
+        }).setOrigin(0.5);
     }
     
     update() {
+        if (this.gameOver) return;
+        
         // Smooth follow target X position
-        if (this.isDragging || Math.abs(this.player.car.x - this.targetX) > 1) {
+        if (this.isDragging || Math.abs(this.playerX - this.targetX) > 1) {
             // Clamp target within bounds
             this.targetX = Phaser.Math.Clamp(this.targetX, this.minX, this.maxX);
             
             // Smooth lerp movement
             const smoothing = 0.15;
-            const newX = Phaser.Math.Linear(this.player.car.x, this.targetX, smoothing);
+            this.playerX = Phaser.Math.Linear(this.playerX, this.targetX, smoothing);
             
-            this.player.car.x = newX;
-            this.player.text.x = newX;
+            this.playerText.x = this.playerX;
         }
         
         // Clean up destroyed objects
-        this.objects = this.objects.filter(obj => obj.sprite.active);
+        this.objects = this.objects.filter(obj => obj.active);
     }
 }
 
