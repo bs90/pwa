@@ -2,16 +2,17 @@
 // Version và cache names
 const CACHE_VERSION = 'v1';
 const CACHE_NAME = `minigame-pwa-${CACHE_VERSION}`;
-const OFFLINE_URL = '/offline.html';
+const OFFLINE_URL = './offline.html';
 
 // Files cần cache ngay khi install
 const PRECACHE_ASSETS = [
-  '/',
-  '/index.html',
-  '/offline.html',
-  '/css/style.css',
-  '/js/app.js',
-  '/manifest.json',
+  './',
+  './index.html',
+  './offline.html',
+  './css/style.css',
+  './js/app.js',
+  './manifest.json',
+  './games/gestures.js',
   // Icons sẽ được cache khi cần
 ];
 

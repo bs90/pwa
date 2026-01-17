@@ -3,7 +3,7 @@
 // Service Worker Registration
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
+    navigator.serviceWorker.register('./sw.js')
       .then((registration) => {
         console.log('✅ Service Worker registered:', registration.scope);
       })
@@ -85,13 +85,9 @@ const backBtn = document.getElementById('backBtn');
 
 // Game data
 const games = {
-  snake: {
-    title: '🐍 Snake Game',
-    file: '/games/snake.js'
-  },
-  memory: {
-    title: '🧠 Memory Game',
-    file: '/games/memory.js'
+  gestures: {
+    title: '👆 Touch Gestures Demo',
+    file: './games/gestures.js'
   }
 };
 
