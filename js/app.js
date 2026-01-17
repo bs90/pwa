@@ -1,11 +1,35 @@
 // ===== PWA App Main Script =====
 
+// Toast notification function
+function showToast(message, icon = '💾', duration = 3000) {
+  const toast = document.getElementById('toast');
+  const toastMessage = document.getElementById('toastMessage');
+  const toastIcon = toast.querySelector('.toast-icon');
+  
+  if (toast && toastMessage) {
+    toastIcon.textContent = icon;
+    toastMessage.textContent = message;
+    toast.classList.add('show');
+    
+    setTimeout(() => {
+      toast.classList.remove('show');
+    }, duration);
+  }
+}
+
 // Service Worker Registration
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js')
       .then((registration) => {
         console.log('✅ Service Worker registered:', registration.scope);
+        
+        // Listen for messages from Service Worker
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data.type === 'CACHE_UPDATED') {
+            showToast(event.data.message, '✅');
+          }
+        });
       })
       .catch((error) => {
         console.error('❌ Service Worker registration failed:', error);

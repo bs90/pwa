@@ -1,6 +1,6 @@
 // Service Worker cho PWA Minigame Collection
 // Version và cache names
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const CACHE_NAME = `minigame-pwa-${CACHE_VERSION}`;
 const OFFLINE_URL = './offline.html';
 
@@ -29,7 +29,18 @@ self.addEventListener('install', (event) => {
         console.log('[Service Worker] Precaching app shell');
         return cache.addAll(PRECACHE_ASSETS);
       })
-      .then(() => self.skipWaiting()) // Activate ngay lập tức
+      .then(() => {
+        // Notify clients about cache update
+        self.clients.matchAll().then(clients => {
+          clients.forEach(client => {
+            client.postMessage({
+              type: 'CACHE_UPDATED',
+              message: 'アプリをキャッシュしました'
+            });
+          });
+        });
+        return self.skipWaiting();
+      })
   );
 });
 
@@ -86,6 +97,27 @@ self.addEventListener('fetch', (event) => {
             .then((cache) => {
               cache.put(event.request, responseToCache);
               console.log('[Service Worker] Cached new resource:', event.request.url);
+              
+              // Notify clients about cache update
+              const fileName = url.pathname.split('/').pop();
+              let message = '';
+              
+              if (isCDN) {
+                message = 'Phaserをキャッシュしました';
+              } else if (url.pathname.includes('/games/')) {
+                message = `${fileName}をキャッシュしました`;
+              }
+              
+              if (message) {
+                self.clients.matchAll().then(clients => {
+                  clients.forEach(client => {
+                    client.postMessage({
+                      type: 'CACHE_UPDATED',
+                      message: message
+                    });
+                  });
+                });
+              }
             });
 
           return response;
