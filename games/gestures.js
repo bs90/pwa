@@ -17,64 +17,68 @@
     
     gameTitle.textContent = '👆 Touch Gestures Demo';
 
-    // Game HTML
+    // Game HTML - Fullscreen cho iPad 8 (810x1080)
     gameContent.innerHTML = `
-        <div style="text-align: center; padding: 20px;">
-            <div id="canvas-container" style="position: relative; margin: 20px auto; max-width: 600px;">
-                <canvas id="gestureCanvas" width="350" height="500" style="
-                    border: 3px solid #2196F3;
-                    border-radius: 10px;
+        <div style="
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-evenly;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        ">
+            <div id="canvas-container" style="flex: 0 0 auto;">
+                <canvas id="gestureCanvas" width="700" height="700" style="
+                    border: 4px solid #fff;
+                    border-radius: 20px;
                     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                     touch-action: none;
-                    max-width: 100%;
-                    height: auto;
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
                 "></canvas>
             </div>
             
             <div id="gestureInfo" style="
-                margin-top: 20px;
-                padding: 20px;
-                background: #f5f5f5;
-                border-radius: 10px;
-                font-size: 18px;
-                min-height: 100px;
+                padding: 20px 30px;
+                background: rgba(255, 255, 255, 0.95);
+                border-radius: 15px;
+                font-size: 20px;
+                min-height: 80px;
+                width: 700px;
+                text-align: center;
+                box-shadow: 0 4px 16px rgba(0,0,0,0.2);
             ">
-                <strong>🎯 Hãy thử các cử chỉ:</strong><br>
-                <div style="text-align: left; margin-top: 15px; line-height: 2;">
-                    👆 <strong>Tap:</strong> Chạm 1 lần<br>
-                    👆👆 <strong>Double Tap:</strong> Chạm 2 lần nhanh<br>
-                    ⏱️ <strong>Long Press:</strong> Giữ lâu (1s)<br>
-                    👉 <strong>Swipe:</strong> Vuốt (↑↓←→)<br>
-                    🤏 <strong>Pinch:</strong> Véo 2 ngón (zoom)<br>
-                    🔄 <strong>Rotate:</strong> Xoay 2 ngón
-                </div>
+                <strong style="font-size: 24px;">🎯 Hãy thử các cử chỉ trên canvas!</strong>
             </div>
 
             <div id="stats" style="
-                margin-top: 20px;
-                padding: 15px;
-                background: #e3f2fd;
-                border-radius: 10px;
+                padding: 20px;
+                background: rgba(255, 255, 255, 0.95);
+                border-radius: 15px;
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-                gap: 10px;
+                grid-template-columns: repeat(4, 1fr);
+                gap: 20px;
                 text-align: center;
+                width: 700px;
+                box-shadow: 0 4px 16px rgba(0,0,0,0.2);
             ">
-                <div><strong>Taps:</strong> <span id="tapCount">0</span></div>
-                <div><strong>Swipes:</strong> <span id="swipeCount">0</span></div>
-                <div><strong>Pinches:</strong> <span id="pinchCount">0</span></div>
-                <div><strong>Rotates:</strong> <span id="rotateCount">0</span></div>
+                <div style="font-size: 18px;"><strong>Taps:</strong><br><span id="tapCount" style="font-size: 28px; color: #2196F3; font-weight: bold;">0</span></div>
+                <div style="font-size: 18px;"><strong>Swipes:</strong><br><span id="swipeCount" style="font-size: 28px; color: #4CAF50; font-weight: bold;">0</span></div>
+                <div style="font-size: 18px;"><strong>Pinches:</strong><br><span id="pinchCount" style="font-size: 28px; color: #FF9800; font-weight: bold;">0</span></div>
+                <div style="font-size: 18px;"><strong>Rotates:</strong><br><span id="rotateCount" style="font-size: 28px; color: #9C27B0; font-weight: bold;">0</span></div>
             </div>
 
             <button id="resetBtn" style="
-                margin-top: 20px;
-                padding: 12px 30px;
+                padding: 18px 50px;
                 background: #f44336;
                 color: white;
                 border: none;
-                border-radius: 5px;
-                font-size: 16px;
+                border-radius: 12px;
+                font-size: 20px;
+                font-weight: 600;
                 cursor: pointer;
+                box-shadow: 0 4px 16px rgba(244, 67, 54, 0.4);
             ">🔄 Reset</button>
         </div>
     `;
@@ -125,21 +129,13 @@
     function showGesture(text, emoji) {
         const info = document.getElementById('gestureInfo');
         info.innerHTML = `
-            <div style="font-size: 48px; margin-bottom: 10px;">${emoji}</div>
-            <strong style="font-size: 24px; color: #2196F3;">${text}</strong>
+            <div style="font-size: 60px; margin-bottom: 10px;">${emoji}</div>
+            <strong style="font-size: 28px; color: #2196F3;">${text}</strong>
         `;
         
         setTimeout(() => {
             info.innerHTML = `
-                <strong>🎯 Hãy thử các cử chỉ:</strong><br>
-                <div style="text-align: left; margin-top: 15px; line-height: 2;">
-                    👆 <strong>Tap:</strong> Chạm 1 lần<br>
-                    👆👆 <strong>Double Tap:</strong> Chạm 2 lần nhanh<br>
-                    ⏱️ <strong>Long Press:</strong> Giữ lâu (1s)<br>
-                    👉 <strong>Swipe:</strong> Vuốt (↑↓←→)<br>
-                    🤏 <strong>Pinch:</strong> Véo 2 ngón (zoom)<br>
-                    🔄 <strong>Rotate:</strong> Xoay 2 ngón
-                </div>
+                <strong style="font-size: 24px;">🎯 Hãy thử các cử chỉ trên canvas!</strong>
             `;
         }, 2000);
     }
