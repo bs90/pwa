@@ -1,6 +1,6 @@
 /**
- * Touch Gestures Demo Game - Simple Canvas
- * Chỉ có canvas tương tác, không có UI phụ
+ * タッチゲーム - Simple Canvas
+ * 画面にタッチしてあそぼう!
  */
 
 (function() {
@@ -24,7 +24,7 @@
     
     // Game state
     const state = {
-        message: { text: 'Try gestures!', emoji: '👆', time: 0 },
+        message: { text: 'がめんをタッチしてね!', emoji: '👆', time: 0 },
         circle: {
             x: 0,
             y: 0,
@@ -95,7 +95,7 @@
             
             // Long press
             state.touch.longPressTimer = setTimeout(() => {
-                showMessage('Long Press!', '⏱️');
+                showMessage('ながおし!', '⏱️');
                 addParticles(pos.x, pos.y, 30, '#FF6B6B');
                 navigator.vibrate && navigator.vibrate(100);
             }, 1000);
@@ -153,11 +153,11 @@
                 const timeSinceLast = now - state.touch.lastTap;
                 
                 if (timeSinceLast < 300) {
-                    showMessage('Double Tap!', '👆👆');
+                    showMessage('ダブルタップ!', '👆👆');
                     state.circle.color = '#' + Math.floor(Math.random()*16777215).toString(16);
                     addParticles(pos.x, pos.y, 40, state.circle.color);
                 } else {
-                    showMessage('Tap!', '👆');
+                    showMessage('タップ!', '👆');
                     addParticles(pos.x, pos.y, 15, '#FFD700');
                 }
                 
@@ -170,20 +170,20 @@
                 const moveDistance = Math.min(120, canvas.width * 0.15);
                 
                 if (angle > -45 && angle <= 45) {
-                    direction = 'RIGHT ➡️';
+                    direction = 'みぎ ➡️';
                     state.circle.x = Math.min(state.circle.x + moveDistance, canvas.width - state.circle.radius * 2);
                 } else if (angle > 45 && angle <= 135) {
-                    direction = 'DOWN ⬇️';
+                    direction = 'した ⬇️';
                     state.circle.y = Math.min(state.circle.y + moveDistance, canvas.height - state.circle.radius * 2);
                 } else if (angle < -45 && angle >= -135) {
-                    direction = 'UP ⬆️';
+                    direction = 'うえ ⬆️';
                     state.circle.y = Math.max(state.circle.y - moveDistance, state.circle.radius * 2);
                 } else {
-                    direction = 'LEFT ⬅️';
+                    direction = 'ひだり ⬅️';
                     state.circle.x = Math.max(state.circle.x - moveDistance, state.circle.radius * 2);
                 }
                 
-                showMessage(`Swipe ${direction}`, '👉');
+                showMessage(`スワイプ ${direction}`, '👉');
                 addParticles(pos.x, pos.y, 20, '#4CAF50');
             }
         }
@@ -210,7 +210,7 @@
             );
             
             if (distance < 15) {
-                showMessage('Click!', '🖱️');
+                showMessage('クリック!', '🖱️');
                 addParticles(pos.x, pos.y, 15, '#FFD700');
             }
         }
@@ -298,11 +298,11 @@
             state.message.time--;
         } else {
             // Instruction text
-            const fontSize = Math.min(canvas.width, canvas.height) * 0.04;
+            const fontSize = Math.min(canvas.width, canvas.height) * 0.035;
             ctx.font = `${fontSize}px Arial`;
             ctx.textAlign = 'center';
             ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-            ctx.fillText('👆 Tap, Double Tap, Long Press, Swipe, Pinch, Rotate', canvas.width / 2, canvas.height * 0.95);
+            ctx.fillText('👆 タップ・ダブルタップ・ながおし・スワイプ・ピンチ', canvas.width / 2, canvas.height * 0.95);
         }
     }
     

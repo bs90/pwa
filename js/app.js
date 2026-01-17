@@ -85,7 +85,7 @@ const backBtn = document.getElementById('backBtn');
 // Game data
 const games = {
   gestures: {
-    title: '👆 Touch Gestures Demo',
+    title: '👆 見本',
     file: './games/gestures.js'
   }
 };
@@ -170,8 +170,8 @@ if (navigator.share) {
   window.shareApp = async function() {
     try {
       await navigator.share({
-        title: 'Minigame Collection',
-        text: 'Chơi các minigame thú vị offline!',
+        title: 'ミニゲーム',
+        text: 'オフラインでもあそべるミニゲーム!',
         url: window.location.href
       });
       console.log('✅ Shared successfully');

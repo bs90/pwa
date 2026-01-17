@@ -1,7 +1,7 @@
 {
-  "name": "Minigame Collection - PWA",
-  "short_name": "Minigames",
-  "description": "Bộ sưu tập các minigame thú vị có thể chơi offline",
+  "name": "ミニゲーム - PWA",
+  "short_name": "ゲーム",
+  "description": "オフラインでもあそべるミニゲーム",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#ffffff",
