@@ -1,0 +1,29 @@
+{
+  "name": "minigame-pwa",
+  "version": "1.0.0",
+  "description": "Progressive Web App với các minigame có thể chơi offline",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx http-server -p 8000 -c-1",
+    "dev": "npx http-server -p 8000 -c-1 -o",
+    "deploy:netlify": "netlify deploy --prod",
+    "deploy:vercel": "vercel --prod",
+    "build": "echo 'No build step needed - Static PWA'"
+  },
+  "keywords": [
+    "pwa",
+    "progressive-web-app",
+    "minigames",
+    "offline",
+    "service-worker",
+    "games"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/minigame-pwa"
+  },
+  "devDependencies": {},
+  "dependencies": {}
+}
