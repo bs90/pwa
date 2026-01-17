@@ -84,6 +84,10 @@ const backBtn = document.getElementById('backBtn');
 
 // Game data
 const games = {
+  'number-game': {
+    title: '🔢 すうじげーむ',
+    file: './games/number-game.js'
+  },
   gestures: {
     title: '👆 見本',
     file: './games/gestures.js'
@@ -111,6 +115,7 @@ function loadGame(gameName) {
   
   // Load game script
   const script = document.createElement('script');
+  script.type = 'module'; // Enable ES6 modules
   script.src = game.file + '?t=' + Date.now(); // Cache busting
   script.onload = () => {
     console.log(`✅ Game ${gameName} loaded`);

@@ -24,6 +24,7 @@
     "type": "git",
     "url": "https://github.com/yourusername/minigame-pwa"
   },
-  "devDependencies": {},
-  "dependencies": {}
+  "dependencies": {
+    "phaser": "^3.90.0"
+  }
 }
