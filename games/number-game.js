@@ -1,5 +1,5 @@
 /**
- * すうじげーむ (Number Game)
+ * すうじゲーム (Number Game)
  * Pure number game: collect smaller numbers, avoid larger numbers
  * Progressive difficulty
  */
@@ -95,12 +95,19 @@ class NumberGame extends Phaser.Scene {
         this.maxRoadNumbers = 3;
         this.minNumberGap = 200; // Minimum distance between numbers
         
-        // Game time tracking for speed increase
+        // Obstacles on road
+        this.obstacles = [];
+        this.maxObstacles = 2; // Max 2 obstacles at once
+        
+        // Game time tracking
         this.gameTime = 0;
         
         // Spawn initial numbers
         this.spawnRoadNumber();
         this.spawnRoadNumber();
+        
+        // Spawn initial obstacle
+        this.spawnObstacle();
         
         // Touch controls
         this.isDragging = false;
@@ -296,6 +303,76 @@ class NumberGame extends Phaser.Scene {
         this.roadNumbers.push(numberText);
     }
     
+    spawnObstacle() {
+        // Don't spawn if already at max
+        if (this.obstacles.length >= this.maxObstacles) return;
+        
+        const { width, height } = this.scale;
+        
+        // Random obstacle emoji
+        const obstacleEmojis = ['🐘', '🐄', '🐖', '🦏', '🪨', '💎', '🌵'];
+        const emoji = Phaser.Utils.Array.GetRandom(obstacleEmojis);
+        
+        // Random X position on road, with padding
+        let randomX;
+        let attempts = 0;
+        let tooClose = true;
+        
+        while (tooClose && attempts < 10) {
+            randomX = Phaser.Math.Between(this.roadLeft + 80, this.roadRight - 80);
+            tooClose = false;
+            
+            // Check distance from existing obstacles and numbers
+            for (let obj of [...this.obstacles, ...this.roadNumbers]) {
+                const distX = Math.abs(obj.x - randomX);
+                if (distX < 120) {
+                    tooClose = true;
+                    break;
+                }
+            }
+            attempts++;
+        }
+        
+        // Always spawn far above screen - find the highest existing obstacle
+        let startY = -400;
+        
+        if (this.obstacles.length > 0) {
+            let topmostY = 0;
+            for (let obs of this.obstacles) {
+                if (obs.y < topmostY) {
+                    topmostY = obs.y;
+                }
+            }
+            startY = topmostY - 400 - Phaser.Math.Between(0, 200);
+        }
+        
+        // Create obstacle
+        const obstacle = this.add.text(randomX, startY, emoji, {
+            fontSize: '64px'
+        });
+        obstacle.setOrigin(0.5);
+        
+        this.obstacles.push(obstacle);
+    }
+    
+    checkObstacleCollision() {
+        for (let i = this.obstacles.length - 1; i >= 0; i--) {
+            const obs = this.obstacles[i];
+            
+            // Check if obstacle hit the car
+            const distance = Phaser.Math.Distance.Between(
+                obs.x, obs.y,
+                this.playerCar.x, this.playerCar.y
+            );
+            
+            if (distance < 80) {
+                // Game over immediately!
+                this.endGame();
+                return;
+            }
+        }
+    }
+    
     checkNumberCollision() {
         for (let i = this.roadNumbers.length - 1; i >= 0; i--) {
             const num = this.roadNumbers[i];
@@ -381,12 +458,29 @@ class NumberGame extends Phaser.Scene {
             }
         }
         
-        // Always maintain 3 numbers on screen - spawn continuously
+        // Move obstacles down
+        for (let i = this.obstacles.length - 1; i >= 0; i--) {
+            const obs = this.obstacles[i];
+            obs.y += (this.roadSpeed * delta) / 1000;
+            
+            // Remove if passed the car
+            if (obs.y > this.playerY + 100) {
+                obs.destroy();
+                this.obstacles.splice(i, 1);
+            }
+        }
+        
+        // Always maintain numbers and obstacles on screen
         while (this.roadNumbers.length < this.maxRoadNumbers) {
             this.spawnRoadNumber();
         }
         
+        while (this.obstacles.length < this.maxObstacles) {
+            this.spawnObstacle();
+        }
+        
         // Check collisions
+        this.checkObstacleCollision(); // Check obstacles first (instant death)
         this.checkNumberCollision();
         
         // Smooth car movement
