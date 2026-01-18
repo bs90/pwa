@@ -2,9 +2,11 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="オフラインでもあそべるミニゲーム">
     <meta name="theme-color" content="#2196F3">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
     <!-- PWA Meta Tags -->
     <link rel="manifest" href="./manifest.json">
@@ -40,10 +42,16 @@
 
         <!-- Game List -->
         <main class="game-list">
+            <!-- Reset Cache Button (First item) -->
+            <div class="game-card reset-cache-card" id="resetCacheBtn">
+                <div class="game-icon reset-icon">🔄</div>
+                <div class="game-title">キャッシュクリア</div>
+            </div>
+            
             <!-- Number Game -->
             <div class="game-card" data-game="number-game">
-                <div class="game-icon">🚗</div>
-                <div class="game-title">すうじげーむ</div>
+                <div class="game-icon"><img src="images/game/car.png" alt="Car" style="width: 120px; height: 120px; object-fit: contain;"></div>
+                <div class="game-title">すうじゲーム</div>
             </div>
         </main>
 

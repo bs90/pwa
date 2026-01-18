@@ -109,7 +109,7 @@ const backBtn = document.getElementById('backBtn');
 // Game data
 const games = {
   'number-game': {
-    title: '🔢 すうじげーむ',
+    title: '🔢 すうじゲーム',
     file: './games/number-game.js'
   },
   gestures: {
@@ -189,6 +189,33 @@ document.querySelectorAll('.game-card').forEach(card => {
       loadGame(gameName);
     }
   });
+});
+
+// ===== Reset Cache Button =====
+const resetCacheBtn = document.getElementById('resetCacheBtn');
+resetCacheBtn?.addEventListener('click', async () => {
+  try {
+    // Delete all caches
+    const cacheNames = await caches.keys();
+    await Promise.all(cacheNames.map(name => caches.delete(name)));
+    
+    // Unregister all service workers
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map(registration => registration.unregister()));
+    }
+    
+    // Show success message
+    showToast('キャッシュをクリアしました！', '✅', 2000);
+    
+    // Reload page after 2 seconds to get fresh version
+    setTimeout(() => {
+      window.location.reload(true);
+    }, 2000);
+  } catch (error) {
+    console.error('Failed to clear cache:', error);
+    showToast('キャッシュクリアに失敗しました', '❌', 3000);
+  }
 });
 
 // ===== Performance Monitoring =====
