@@ -106,7 +106,7 @@ class NumberGame extends Phaser.Scene {
         graphics.fillStyle(0x444444, 1);
         graphics.fillRect(roadX, 0, roadWidth, height);
         
-        // White lane dividers (3 lanes)
+        // White lane dividers (3 lanes) - static
         graphics.lineStyle(4, 0xffffff, 0.8);
         
         const laneWidth = roadWidth / 3;
@@ -117,30 +117,60 @@ class NumberGame extends Phaser.Scene {
         // Right divider
         graphics.lineBetween(roadX + laneWidth * 2, 0, roadX + laneWidth * 2, height);
         
-        // Dashed center lines for effect
-        graphics.lineStyle(8, 0xffff00, 0.5);
-        const dashHeight = 40;
-        const dashGap = 30;
-        for (let y = 0; y < height; y += dashHeight + dashGap) {
-            // Left lane center
-            graphics.lineBetween(
-                roadX + laneWidth / 2, y,
-                roadX + laneWidth / 2, y + dashHeight
-            );
-            // Middle lane center
-            graphics.lineBetween(
-                roadX + laneWidth * 1.5, y,
-                roadX + laneWidth * 1.5, y + dashHeight
-            );
-            // Right lane center
-            graphics.lineBetween(
-                roadX + laneWidth * 2.5, y,
-                roadX + laneWidth * 2.5, y + dashHeight
-            );
+        // Create animated yellow dashes
+        this.roadDashes = [];
+        this.dashHeight = 40;
+        this.dashGap = 30;
+        this.roadSpeed = 200; // pixels per second
+        
+        // Create initial dashes
+        const totalDashSpace = this.dashHeight + this.dashGap;
+        const numDashes = Math.ceil(height / totalDashSpace) + 2; // Extra for seamless loop
+        
+        for (let i = 0; i < numDashes; i++) {
+            const startY = i * totalDashSpace - totalDashSpace;
+            
+            // Left lane dash
+            const leftDash = this.add.graphics();
+            leftDash.lineStyle(8, 0xffff00, 0.5);
+            leftDash.lineBetween(0, 0, 0, this.dashHeight);
+            leftDash.x = roadX + laneWidth / 2;
+            leftDash.y = startY;
+            this.roadDashes.push(leftDash);
+            
+            // Middle lane dash
+            const middleDash = this.add.graphics();
+            middleDash.lineStyle(8, 0xffff00, 0.5);
+            middleDash.lineBetween(0, 0, 0, this.dashHeight);
+            middleDash.x = roadX + laneWidth * 1.5;
+            middleDash.y = startY;
+            this.roadDashes.push(middleDash);
+            
+            // Right lane dash
+            const rightDash = this.add.graphics();
+            rightDash.lineStyle(8, 0xffff00, 0.5);
+            rightDash.lineBetween(0, 0, 0, this.dashHeight);
+            rightDash.x = roadX + laneWidth * 2.5;
+            rightDash.y = startY;
+            this.roadDashes.push(rightDash);
         }
     }
     
-    update() {
+    update(time, delta) {
+        // Animate road dashes moving down
+        const { height } = this.scale;
+        const totalDashSpace = this.dashHeight + this.dashGap;
+        
+        for (let dash of this.roadDashes) {
+            // Move dash down
+            dash.y += (this.roadSpeed * delta) / 1000;
+            
+            // Reset to top when it goes off bottom
+            if (dash.y > height) {
+                dash.y -= totalDashSpace * Math.ceil((height + totalDashSpace) / totalDashSpace);
+            }
+        }
+        
         // Smooth car movement
         if (this.isDragging || Math.abs(this.playerX - this.targetX) > 1) {
             this.targetX = Phaser.Math.Clamp(this.targetX, this.minX, this.maxX);
