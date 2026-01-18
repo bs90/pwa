@@ -62,11 +62,11 @@ class NumberGame extends Phaser.Scene {
         this.playerX = width / 2;
         this.playerY = height * 0.85; // Near bottom
         
-        // Player car sprite - simple 2D top view, rotated -90 degrees (pointing up)
+        // Player car sprite - simple 2D top view, bigger and rotated correctly
         if (this.textures.exists('car')) {
             this.playerCar = this.add.sprite(this.playerX, this.playerY, 'car');
-            this.playerCar.setScale(0.8);
-            this.playerCar.setAngle(-90); // Rotate to point upward
+            this.playerCar.setScale(1.5); // Much bigger!
+            this.playerCar.setAngle(90); // Rotate 90 degrees (pointing up)
         } else {
             // Fallback: draw a simple car from top view
             console.warn('Using fallback car drawing');
@@ -79,7 +79,7 @@ class NumberGame extends Phaser.Scene {
             const carTexture = carGraphics.generateTexture('carFallback', 50, 80);
             carGraphics.destroy();
             this.playerCar = this.add.sprite(this.playerX, this.playerY, 'carFallback');
-            this.playerCar.setScale(0.8);
+            this.playerCar.setScale(1.5); // Much bigger!
         }
         
         // Player number text below car - bigger and clearer
