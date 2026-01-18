@@ -34,12 +34,22 @@ class NumberGame extends Phaser.Scene {
     }
 
     preload() {
-        // Load car image
-        this.load.image('car', '../images/game/car.png');
+        // Load car image with absolute path from root
+        this.load.image('car', 'images/game/car.png');
+        
+        // Add error handler
+        this.load.on('loaderror', (file) => {
+            console.error('Error loading:', file.src);
+        });
     }
 
     create() {
         const { width, height } = this.scale;
+        
+        // Check if car image loaded
+        if (!this.textures.exists('car')) {
+            console.error('Car texture not loaded!');
+        }
         
         // Background gradient
         this.cameras.main.setBackgroundColor('#667eea');
@@ -53,8 +63,22 @@ class NumberGame extends Phaser.Scene {
         this.playerY = height * 0.93; // Very low - leave space for finger at bottom
         
         // Player car sprite - bigger and lower
-        this.playerCar = this.add.sprite(this.playerX, this.playerY - 40, 'car');
-        this.playerCar.setScale(1.4); // Bigger (was 0.8)
+        if (this.textures.exists('car')) {
+            this.playerCar = this.add.sprite(this.playerX, this.playerY - 40, 'car');
+            this.playerCar.setScale(1.4); // Bigger (was 0.8)
+        } else {
+            // Fallback: draw a simple car if image doesn't load
+            console.warn('Using fallback car drawing');
+            const carGraphics = this.add.graphics();
+            carGraphics.fillStyle(0xFF6B6B, 1);
+            carGraphics.fillRect(-30, -40, 60, 80);
+            carGraphics.fillStyle(0x4ECDC4, 1);
+            carGraphics.fillRect(-25, -30, 50, 30);
+            const carTexture = carGraphics.generateTexture('carFallback', 60, 80);
+            carGraphics.destroy();
+            this.playerCar = this.add.sprite(this.playerX, this.playerY - 40, 'carFallback');
+            this.playerCar.setScale(1.4);
+        }
         
         // Player number text below car
         this.playerText = this.add.text(this.playerX, this.playerY + 35, this.playerNumber.toString(), {
@@ -74,14 +98,15 @@ class NumberGame extends Phaser.Scene {
         this.objectsCollected = 0; // For difficulty progression
         
         // Difficulty settings
-        this.spawnDelay = 3000;
+        this.spawnDelay = 4500; // Slower spawn (was 3000)
+        this.objectSpeed = 5000; // Much slower movement (was 3000)
         this.minNumber = 1;
         this.maxNumber = 15;
         
-        // Spawn objects periodically
+        // Spawn multiple objects at once
         this.spawnTimer = this.time.addEvent({
             delay: this.spawnDelay,
-            callback: this.spawnObject,
+            callback: this.spawnMultipleObjects,
             callbackScope: this,
             loop: true
         });
@@ -201,7 +226,53 @@ class NumberGame extends Phaser.Scene {
         );
     }
     
-    spawnObject() {
+    spawnMultipleObjects() {
+        if (this.gameOver) return;
+        
+        // Always spawn exactly 2-3 numbers with GUARANTEED choices:
+        // - At least 1 smaller (safe to collect)
+        // - At least 1 larger (dangerous)
+        const count = Phaser.Math.Between(2, 3);
+        const lanes = [-150, 0, 150];
+        const usedLanes = [];
+        
+        for (let i = 0; i < count; i++) {
+            // Pick a random lane that hasn't been used
+            const availableLanes = lanes.filter(lane => !usedLanes.includes(lane));
+            if (availableLanes.length === 0) break;
+            
+            const lane = Phaser.Utils.Array.GetRandom(availableLanes);
+            usedLanes.push(lane);
+            
+            let number;
+            
+            if (i === 0) {
+                // First number: ALWAYS smaller than player (safe choice)
+                const maxSafe = Math.max(1, this.playerNumber - 1);
+                number = Phaser.Math.Between(this.minNumber, maxSafe);
+            } else if (i === 1) {
+                // Second number: ALWAYS larger than player (risky choice)
+                const minRisky = this.playerNumber + 1;
+                number = Phaser.Math.Between(minRisky, Math.min(this.maxNumber, this.playerNumber + 10));
+            } else {
+                // Third number (if count=3): Random (could be smaller or larger)
+                const rand = Math.random();
+                if (rand < 0.5) {
+                    // Another safe option
+                    const maxSafe = Math.max(1, this.playerNumber - 1);
+                    number = Phaser.Math.Between(this.minNumber, maxSafe);
+                } else {
+                    // Another risky option
+                    const minRisky = this.playerNumber + 1;
+                    number = Phaser.Math.Between(minRisky, Math.min(this.maxNumber, this.playerNumber + 10));
+                }
+            }
+            
+            this.spawnObjectAtLane(lane, number);
+        }
+    }
+    
+    spawnObjectAtLane(lane, number) {
         if (this.gameOver) return;
         
         const { width, height } = this.scale;
@@ -217,71 +288,36 @@ class NumberGame extends Phaser.Scene {
             this.maxNumber = 50;
         }
         
-        // Spawn faster over time
-        if (this.objectsCollected > 15 && this.spawnDelay > 2000) {
-            this.spawnDelay = 2000;
-            this.spawnTimer.delay = this.spawnDelay;
-        }
-        
-        // Generate random number with higher chance of numbers near player's number
-        let number;
-        const rand = Math.random();
-        
-        if (rand < 0.4) {
-            // 40% chance: smaller than player (easy to collect)
-            number = Phaser.Math.Between(this.minNumber, Math.max(1, this.playerNumber - 2));
-        } else if (rand < 0.7) {
-            // 30% chance: around player's number (±3)
-            const min = Math.max(this.minNumber, this.playerNumber - 3);
-            const max = Math.min(this.maxNumber, this.playerNumber + 3);
-            number = Phaser.Math.Between(min, max);
-        } else {
-            // 30% chance: larger than player (dangerous)
-            number = Phaser.Math.Between(this.playerNumber + 1, this.maxNumber);
-        }
-        
         // Start from horizon
         const startY = height * 0.15;
         const endY = height * 0.93; // Match new player Y position
         const startScale = 0.1;
-        const endScale = 1.0;
+        const endScale = 2.0; // Much bigger! (was 1.0)
         
-        // Random lane
-        const lanes = [-150, 0, 150];
-        const randomLane = Phaser.Utils.Array.GetRandom(lanes);
-        const startX = width / 2 + randomLane * startScale;
-        const endX = width / 2 + randomLane;
+        // Calculate X position for this lane
+        const startX = width / 2 + lane * startScale;
+        const endX = width / 2 + lane;
         
-        // Determine color based on comparison with player
-        let color;
-        if (number < this.playerNumber) {
-            color = 0x4CAF50; // Green - good to collect
-        } else if (number === this.playerNumber) {
-            color = 0xFFA726; // Orange - neutral
-        } else {
-            color = 0xFF5252; // Red - dangerous
-        }
-        
-        // Create number text (no circle, just text)
+        // Create number text - all white, no color coding
         const text = this.add.text(startX, startY, number.toString(), {
             fontSize: '48px',
             fontFamily: 'Arial',
             color: '#ffffff',
             fontStyle: 'bold',
-            stroke: Phaser.Display.Color.IntegerToColor(color).rgba,
+            stroke: '#000000',
             strokeThickness: 8
         });
         text.setOrigin(0.5);
         text.setScale(startScale);
         text.setData('value', number);
         
-        // Animate toward player
+        // Animate toward player (slower speed)
         this.tweens.add({
             targets: text,
             x: endX,
             y: endY,
             scale: endScale,
-            duration: 3000,
+            duration: this.objectSpeed, // Use configurable speed
             ease: 'Cubic.easeIn',
             onComplete: () => {
                 // Check collision with player car (use car position)
