@@ -339,10 +339,6 @@ class NumberGame extends Phaser.Scene {
         // Update game time
         this.gameTime += delta / 1000; // Convert to seconds
         
-        // Increase speed over time (starts at 200, increases 10 every 10 seconds)
-        const speedIncrease = Math.floor(this.gameTime / 10) * 10;
-        this.roadSpeed = 200 + speedIncrease;
-        
         // Animate road dashes moving down
         const { height } = this.scale;
         const totalDashSpace = this.dashHeight + this.dashGap;
