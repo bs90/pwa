@@ -154,6 +154,32 @@ class NumberGame extends Phaser.Scene {
             rightDash.y = startY;
             this.roadDashes.push(rightDash);
         }
+        
+        // Create roadside objects (trees and houses)
+        this.roadsideObjects = [];
+        const emojis = ['🌲', '🏠', '🌳', '🏡'];
+        const objectGap = 150; // Space between objects
+        const numObjects = Math.ceil(height / objectGap) + 2;
+        
+        for (let i = 0; i < numObjects; i++) {
+            const startY = i * objectGap - objectGap;
+            
+            // Left side object
+            const leftEmoji = Phaser.Utils.Array.GetRandom(emojis);
+            const leftObj = this.add.text(roadX - 60, startY, leftEmoji, {
+                fontSize: '48px'
+            });
+            leftObj.setOrigin(0.5);
+            this.roadsideObjects.push(leftObj);
+            
+            // Right side object (offset a bit for variety)
+            const rightEmoji = Phaser.Utils.Array.GetRandom(emojis);
+            const rightObj = this.add.text(roadX + roadWidth + 60, startY + objectGap / 2, rightEmoji, {
+                fontSize: '48px'
+            });
+            rightObj.setOrigin(0.5);
+            this.roadsideObjects.push(rightObj);
+        }
     }
     
     update(time, delta) {
@@ -168,6 +194,22 @@ class NumberGame extends Phaser.Scene {
             // Reset to top when it goes off bottom
             if (dash.y > height) {
                 dash.y -= totalDashSpace * Math.ceil((height + totalDashSpace) / totalDashSpace);
+            }
+        }
+        
+        // Animate roadside objects (trees & houses)
+        const objectGap = 150;
+        for (let obj of this.roadsideObjects) {
+            // Move object down at same speed as road
+            obj.y += (this.roadSpeed * delta) / 1000;
+            
+            // Reset to top when it goes off bottom
+            if (obj.y > height + 50) {
+                obj.y -= objectGap * Math.ceil((height + objectGap) / objectGap);
+                
+                // Change emoji when resetting for variety
+                const emojis = ['🌲', '🏠', '🌳', '🏡'];
+                obj.setText(Phaser.Utils.Array.GetRandom(emojis));
             }
         }
         
