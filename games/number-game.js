@@ -66,7 +66,7 @@ class NumberGame extends Phaser.Scene {
         if (this.textures.exists('car')) {
             this.playerCar = this.add.sprite(this.playerX, this.playerY, 'car');
             this.playerCar.setScale(1.5); // Much bigger!
-            this.playerCar.setAngle(90); // Rotate 90 degrees (pointing up)
+            this.playerCar.setAngle(-90); // Car image points right, rotate -90 to point up
         } else {
             // Fallback: draw a simple car from top view
             console.warn('Using fallback car drawing');
@@ -309,15 +309,19 @@ class NumberGame extends Phaser.Scene {
                     const objNumber = text.getData('value');
                     
                     if (objNumber < this.playerNumber) {
-                        // Collect: add to player number
+                        // Collect smaller number: add to player number AND add to score
                         this.playerNumber += objNumber;
                         this.score += objNumber;
                         this.objectsCollected++;
+                    } else if (objNumber === this.playerNumber) {
+                        // Equal: just add to score, player number stays same
+                        this.score += objNumber;
+                        this.objectsCollected++;
                     } else {
-                        // Hit larger number: lose half (rounded up)
-                        const penalty = Math.ceil(this.playerNumber / 2);
-                        this.playerNumber -= penalty;
-                        this.score = Math.max(0, this.score - penalty);
+                        // Hit larger number: player number divided by 2 (rounded up)
+                        this.playerNumber = Math.ceil(this.playerNumber / 2);
+                        // Score also reduced by half
+                        this.score = Math.ceil(this.score / 2);
                         
                         // Check game over
                         if (this.playerNumber <= 0) {
