@@ -52,9 +52,9 @@ class NumberGame extends Phaser.Scene {
         // Draw simple 2D top-down road
         this.drawTopDownRoad();
         
-        // Player position
+        // Player position (raised 50px higher)
         this.playerX = width / 2;
-        this.playerY = height * 0.85;
+        this.playerY = height * 0.85 - 50;
         
         // Player car sprite - NO rotation, keep original orientation
         if (this.textures.exists('car')) {

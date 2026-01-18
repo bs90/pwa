@@ -1,5 +1,16 @@
 // ===== PWA App Main Script =====
 
+// Cache version (must match sw.js)
+const CACHE_VERSION = '202601181853';
+
+// Update cache version display on page load
+window.addEventListener('DOMContentLoaded', () => {
+  const cacheVersionText = document.getElementById('cacheVersionText');
+  if (cacheVersionText) {
+    cacheVersionText.textContent = CACHE_VERSION;
+  }
+});
+
 // Toast notification function
 function showToast(message, icon = '💾', duration = 3000) {
   const toast = document.getElementById('toast');
