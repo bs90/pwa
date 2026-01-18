@@ -1,6 +1,6 @@
 // Service Worker cho PWA Minigame Collection
-// Version và cache names
-const CACHE_VERSION = 'v7';
+// Version và cache names (format: yyyymmddHHMM)
+const CACHE_VERSION = '202601181323';
 const CACHE_NAME = `minigame-pwa-${CACHE_VERSION}`;
 const OFFLINE_URL = './offline.html';
 
