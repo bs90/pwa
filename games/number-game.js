@@ -51,43 +51,45 @@ class NumberGame extends Phaser.Scene {
             console.error('Car texture not loaded!');
         }
         
-        // Background gradient
-        this.cameras.main.setBackgroundColor('#667eea');
+        // Simple background - light gray road
+        this.cameras.main.setBackgroundColor('#888888');
         
-        // Draw perspective road
-        this.drawPerspectiveGrid();
+        // Draw simple 2D top-down road
+        this.drawTopDownRoad();
         
         // Player number (starting at 10)
         this.playerNumber = 10;
         this.playerX = width / 2;
-        this.playerY = height * 0.93; // Very low - leave space for finger at bottom
+        this.playerY = height * 0.85; // Near bottom
         
-        // Player car sprite - bigger and lower
+        // Player car sprite - simple 2D top view, rotated -90 degrees (pointing up)
         if (this.textures.exists('car')) {
-            this.playerCar = this.add.sprite(this.playerX, this.playerY - 40, 'car');
-            this.playerCar.setScale(1.4); // Bigger (was 0.8)
+            this.playerCar = this.add.sprite(this.playerX, this.playerY, 'car');
+            this.playerCar.setScale(0.8);
+            this.playerCar.setAngle(-90); // Rotate to point upward
         } else {
-            // Fallback: draw a simple car if image doesn't load
+            // Fallback: draw a simple car from top view
             console.warn('Using fallback car drawing');
             const carGraphics = this.add.graphics();
+            // Simple rectangle car (top view)
             carGraphics.fillStyle(0xFF6B6B, 1);
-            carGraphics.fillRect(-30, -40, 60, 80);
-            carGraphics.fillStyle(0x4ECDC4, 1);
-            carGraphics.fillRect(-25, -30, 50, 30);
-            const carTexture = carGraphics.generateTexture('carFallback', 60, 80);
+            carGraphics.fillRect(-25, -40, 50, 80);
+            carGraphics.fillStyle(0x000000, 1);
+            carGraphics.fillRect(-20, -30, 40, 25); // Window
+            const carTexture = carGraphics.generateTexture('carFallback', 50, 80);
             carGraphics.destroy();
-            this.playerCar = this.add.sprite(this.playerX, this.playerY - 40, 'carFallback');
-            this.playerCar.setScale(1.4);
+            this.playerCar = this.add.sprite(this.playerX, this.playerY, 'carFallback');
+            this.playerCar.setScale(0.8);
         }
         
-        // Player number text below car
-        this.playerText = this.add.text(this.playerX, this.playerY + 35, this.playerNumber.toString(), {
-            fontSize: '60px',
+        // Player number text below car - bigger and clearer
+        this.playerText = this.add.text(this.playerX, this.playerY + 60, this.playerNumber.toString(), {
+            fontSize: '72px',
             fontFamily: 'Arial',
             color: '#FFD700',
             fontStyle: 'bold',
             stroke: '#000000',
-            strokeThickness: 6
+            strokeThickness: 8
         });
         this.playerText.setOrigin(0.5);
         
@@ -161,69 +163,49 @@ class NumberGame extends Phaser.Scene {
         this.maxX = width - 100;
     }
     
-    drawPerspectiveGrid() {
+    drawTopDownRoad() {
         const { width, height } = this.scale;
         const graphics = this.add.graphics();
         
-        // Vanishing point (near title)
-        const vanishX = width / 2;
-        const vanishY = height * 0.15;
+        // Draw simple vertical road (dark gray)
+        const roadWidth = width * 0.7;
+        const roadX = (width - roadWidth) / 2;
         
-        // Road color - dark gray asphalt
-        const roadColor = 0x3d3d5c;
-        const grassColor = 0x2d5016;
-        const lineColor = 0xffffff;
+        graphics.fillStyle(0x444444, 1);
+        graphics.fillRect(roadX, 0, roadWidth, height);
         
-        // Draw grass background on sides
-        graphics.fillStyle(grassColor, 1);
-        graphics.fillRect(0, 0, width, height);
+        // White lane dividers (3 lanes)
+        graphics.lineStyle(4, 0xffffff, 0.8);
         
-        // Draw main road as trapezoid (perspective)
-        const roadBottomWidth = width * 0.8;
-        const roadTopWidth = width * 0.1;
+        const laneWidth = roadWidth / 3;
         
-        graphics.fillStyle(roadColor, 1);
-        graphics.beginPath();
-        graphics.moveTo(vanishX - roadTopWidth / 2, vanishY); // Top left
-        graphics.lineTo(vanishX + roadTopWidth / 2, vanishY); // Top right
-        graphics.lineTo(width / 2 + roadBottomWidth / 2, height); // Bottom right
-        graphics.lineTo(width / 2 - roadBottomWidth / 2, height); // Bottom left
-        graphics.closePath();
-        graphics.fillPath();
+        // Left divider
+        graphics.lineBetween(roadX + laneWidth, 0, roadX + laneWidth, height);
         
-        // Draw center dashed line
-        graphics.lineStyle(3, lineColor, 0.6);
-        const dashCount = 10;
-        for (let i = 0; i < dashCount; i++) {
-            const t1 = i / dashCount;
-            const t2 = (i + 0.5) / dashCount;
-            
-            // Interpolate from vanishing point to bottom center
-            const y1 = vanishY + (height - vanishY) * t1;
-            const y2 = vanishY + (height - vanishY) * t2;
-            
-            // Line gets wider as it approaches bottom (perspective)
-            const width1 = 2 + (8 * t1);
-            const width2 = 2 + (8 * t2);
-            
-            graphics.lineStyle(width1, lineColor, 0.6);
-            graphics.lineBetween(vanishX, y1, vanishX, y2);
+        // Right divider
+        graphics.lineBetween(roadX + laneWidth * 2, 0, roadX + laneWidth * 2, height);
+        
+        // Dashed center lines for effect
+        graphics.lineStyle(8, 0xffff00, 0.5);
+        const dashHeight = 40;
+        const dashGap = 30;
+        for (let y = 0; y < height; y += dashHeight + dashGap) {
+            // Left lane center
+            graphics.lineBetween(
+                roadX + laneWidth / 2, y,
+                roadX + laneWidth / 2, y + dashHeight
+            );
+            // Middle lane center
+            graphics.lineBetween(
+                roadX + laneWidth * 1.5, y,
+                roadX + laneWidth * 1.5, y + dashHeight
+            );
+            // Right lane center
+            graphics.lineBetween(
+                roadX + laneWidth * 2.5, y,
+                roadX + laneWidth * 2.5, y + dashHeight
+            );
         }
-        
-        // Draw side lines (road edges)
-        graphics.lineStyle(4, lineColor, 0.5);
-        
-        // Left edge
-        graphics.lineBetween(
-            vanishX - roadTopWidth / 2, vanishY,
-            width / 2 - roadBottomWidth / 2, height
-        );
-        
-        // Right edge
-        graphics.lineBetween(
-            vanishX + roadTopWidth / 2, vanishY,
-            width / 2 + roadBottomWidth / 2, height
-        );
     }
     
     spawnMultipleObjects() {
@@ -288,45 +270,42 @@ class NumberGame extends Phaser.Scene {
             this.maxNumber = 50;
         }
         
-        // Start from horizon
-        const startY = height * 0.15;
-        const endY = height * 0.93; // Match new player Y position
-        const startScale = 0.1;
-        const endScale = 2.0; // Much bigger! (was 1.0)
+        // Simple 2D top-down: spawn from top, move straight down
+        const startY = -50; // Start above screen
+        const endY = height + 50; // End below screen
         
-        // Calculate X position for this lane
-        const startX = width / 2 + lane * startScale;
-        const endX = width / 2 + lane;
+        // Calculate X position for this lane (simple, no scaling)
+        const laneX = width / 2 + lane;
         
-        // Create number text - all white, no color coding
-        const text = this.add.text(startX, startY, number.toString(), {
-            fontSize: '48px',
+        // Create number text - BIG and clear for kids
+        const text = this.add.text(laneX, startY, number.toString(), {
+            fontSize: '80px',
             fontFamily: 'Arial',
             color: '#ffffff',
             fontStyle: 'bold',
             stroke: '#000000',
-            strokeThickness: 8
+            strokeThickness: 10
         });
         text.setOrigin(0.5);
-        text.setScale(startScale);
         text.setData('value', number);
         
-        // Animate toward player (slower speed)
+        // Animate straight down (simple movement)
         this.tweens.add({
             targets: text,
-            x: endX,
             y: endY,
-            scale: endScale,
-            duration: this.objectSpeed, // Use configurable speed
-            ease: 'Cubic.easeIn',
-            onComplete: () => {
-                // Check collision with player car (use car position)
+            duration: this.objectSpeed,
+            ease: 'Linear',
+            onUpdate: () => {
+                // Check collision continuously as number moves down
+                if (this.gameOver) return;
+                
                 const distance = Phaser.Math.Distance.Between(
                     text.x, text.y,
-                    this.playerX, this.playerY - 40 // Car is at playerY - 40
+                    this.playerX, this.playerY
                 );
                 
-                if (distance < 110 && !this.gameOver) { // Bigger collision radius for bigger car
+                if (distance < 100 && text.getData('collected') !== true) {
+                    text.setData('collected', true);
                     const objNumber = text.getData('value');
                     
                     if (objNumber < this.playerNumber) {
@@ -349,8 +328,18 @@ class NumberGame extends Phaser.Scene {
                     // Update display
                     this.playerText.setText(this.playerNumber.toString());
                     this.scoreText.setText('スコア: ' + this.score);
+                    
+                    // Fade out collected number
+                    this.tweens.add({
+                        targets: text,
+                        alpha: 0,
+                        scale: 2,
+                        duration: 300,
+                        onComplete: () => text.destroy()
+                    });
                 }
-                
+            },
+            onComplete: () => {
                 text.destroy();
             }
         });
