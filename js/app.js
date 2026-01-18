@@ -1,13 +1,13 @@
 // ===== PWA App Main Script =====
 
 // Cache version (must match sw.js)
-const CACHE_VERSION = '202601181909';
+const CACHE_VERSION = '202601181913';
 
 // Update cache version display on page load
 window.addEventListener('DOMContentLoaded', () => {
-  const cacheVersionText = document.getElementById('cacheVersionText');
-  if (cacheVersionText) {
-    cacheVersionText.textContent = CACHE_VERSION;
+  const cacheVersionDisplay = document.getElementById('cacheVersionDisplay');
+  if (cacheVersionDisplay) {
+    cacheVersionDisplay.textContent = `v${CACHE_VERSION}`;
   }
 });
 
@@ -200,33 +200,6 @@ document.querySelectorAll('.game-card').forEach(card => {
       loadGame(gameName);
     }
   });
-});
-
-// ===== Reset Cache Button =====
-const resetCacheBtn = document.getElementById('resetCacheBtn');
-resetCacheBtn?.addEventListener('click', async () => {
-  try {
-    // Delete all caches
-    const cacheNames = await caches.keys();
-    await Promise.all(cacheNames.map(name => caches.delete(name)));
-    
-    // Unregister all service workers
-    if ('serviceWorker' in navigator) {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(registrations.map(registration => registration.unregister()));
-    }
-    
-    // Show success message
-    showToast('キャッシュをクリアしました！', '✅', 2000);
-    
-    // Reload page after 2 seconds to get fresh version
-    setTimeout(() => {
-      window.location.reload(true);
-    }, 2000);
-  } catch (error) {
-    console.error('Failed to clear cache:', error);
-    showToast('キャッシュクリアに失敗しました', '❌', 3000);
-  }
 });
 
 // ===== Performance Monitoring =====

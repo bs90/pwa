@@ -113,15 +113,6 @@ body {
     display: none; /* Ẩn description */
 }
 
-/* Reset Cache Card Styling */
-.reset-cache-card .reset-icon {
-    background: linear-gradient(135deg, #FF6B6B 0%, #EE5A6F 100%);
-}
-
-.reset-cache-card:active .reset-icon {
-    background: linear-gradient(135deg, #EE5A6F 0%, #C44569 100%);
-}
-
 /* ===== Buttons ===== */
 button {
     font-family: inherit;
@@ -208,6 +199,20 @@ button {
     width: 100%;
     height: 100%;
     touch-action: none;
+}
+
+/* ===== Cache Version Display ===== */
+.cache-version {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.3);
+    font-family: 'Monaco', 'Courier New', monospace;
+    z-index: 100;
+    pointer-events: none;
+    user-select: none;
 }
 
 /* ===== Footer ===== */
