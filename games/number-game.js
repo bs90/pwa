@@ -74,6 +74,9 @@ class NumberGame extends Phaser.Scene {
         // Player score/number - starts at 10
         this.playerScore = 10;
         
+        // Countdown timer (15 seconds to collect a number or game over)
+        this.countdown = 15;
+        
         // Display score way below car to avoid overlap
         this.scoreText = this.add.text(this.playerX, this.playerY + 150, this.playerScore.toString(), {
             fontSize: '72px',
@@ -84,6 +87,13 @@ class NumberGame extends Phaser.Scene {
             strokeThickness: 8
         });
         this.scoreText.setOrigin(0.5);
+        
+        // Display countdown timer as circular progress ring in center of car
+        this.countdownCircle = this.add.graphics();
+        this.countdownCircleX = this.playerX;
+        this.countdownCircleY = this.playerY + 20; // Dịch xuống 20px từ tâm xe
+        this.countdownRadius = 20; // Smaller circle radius (was 40)
+        this.maxCountdown = 15; // Max countdown time for calculating percentage
         
         // Road boundaries
         const roadWidth = width * 0.7;
@@ -99,8 +109,22 @@ class NumberGame extends Phaser.Scene {
         this.obstacles = [];
         this.maxObstacles = 2; // Max 2 obstacles at once
         
+        // Power-up items
+        this.powerUps = [];
+        this.powerUpActive = false;
+        this.powerUpType = null; // 'bigger' or 'smaller'
+        this.powerUpEndTime = 0;
+        this.originalCarScale = 1.5;
+        this.powerUpEffect = null; // Visual effect when power-up is active
+        
         // Game time tracking
         this.gameTime = 0;
+        
+        // Game state
+        this.isGameOver = false;
+        
+        // Initialize simple sound effects using Web Audio API
+        this.initSounds();
         
         // Spawn initial numbers
         this.spawnRoadNumber();
@@ -158,7 +182,7 @@ class NumberGame extends Phaser.Scene {
         this.roadDashes = [];
         this.dashHeight = 40;
         this.dashGap = 30;
-        this.roadSpeed = 200; // pixels per second
+        this.roadSpeed = 240; // pixels per second (increased from 200, +20%)
         
         // Create initial dashes
         const totalDashSpace = this.dashHeight + this.dashGap;
@@ -219,53 +243,232 @@ class NumberGame extends Phaser.Scene {
         }
     }
     
+    getCurrentSpeed() {
+        // Base speed, multiplied by 1.5 during power mode
+        return this.roadSpeed * (this.powerUpActive ? 1.5 : 1);
+    }
+    
+    getMaxObstacles() {
+        // Start with 2 obstacles, add 1 every 60 seconds (max 5)
+        return Math.min(5, 2 + Math.floor(this.gameTime / 60));
+    }
+    
+    initSounds() {
+        // Create Audio Context for sound effects
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Sound cooldown system to prevent overlapping sounds
+            this.soundCooldowns = {
+                'collect-good': 0,
+                'collect-bad': 0,
+                'crash': 0,
+                'power-up': 0
+            };
+            this.soundCooldownDuration = 100; // 100ms cooldown between same sound
+            
+            this.startBackgroundMusic();
+        } catch (e) {
+            console.warn('Web Audio API not supported');
+            this.audioContext = null;
+        }
+    }
+    
+    startBackgroundMusic() {
+        if (!this.audioContext) return;
+        
+        // Track music timer to stop when leaving game
+        this.musicTimer = null;
+        this.isMusicPlaying = true;
+        
+        // Create a simple cheerful melody loop
+        const melody = [
+            { note: 523.25, duration: 0.3 },  // C5
+            { note: 587.33, duration: 0.3 },  // D5
+            { note: 659.25, duration: 0.3 },  // E5
+            { note: 698.46, duration: 0.3 },  // F5
+            { note: 783.99, duration: 0.6 },  // G5
+            { note: 698.46, duration: 0.3 },  // F5
+            { note: 659.25, duration: 0.3 },  // E5
+            { note: 587.33, duration: 0.6 },  // D5
+        ];
+        
+        const playMelody = () => {
+            // Stop if game over or music stopped
+            if (this.isGameOver || !this.isMusicPlaying) return;
+            
+            let currentTime = this.audioContext.currentTime;
+            
+            melody.forEach((note, index) => {
+                const osc = this.audioContext.createOscillator();
+                const gain = this.audioContext.createGain();
+                
+                osc.connect(gain);
+                gain.connect(this.audioContext.destination);
+                
+                osc.frequency.value = note.note;
+                osc.type = 'sine';
+                
+                gain.gain.setValueAtTime(0.1, currentTime); // Quiet background music
+                gain.gain.exponentialRampToValueAtTime(0.01, currentTime + note.duration);
+                
+                osc.start(currentTime);
+                osc.stop(currentTime + note.duration);
+                
+                currentTime += note.duration;
+            });
+            
+            // Calculate total duration and schedule next loop
+            const totalDuration = melody.reduce((sum, note) => sum + note.duration, 0);
+            this.musicTimer = setTimeout(() => playMelody(), totalDuration * 1000);
+        };
+        
+        // Start playing
+        playMelody();
+    }
+    
+    stopBackgroundMusic() {
+        this.isMusicPlaying = false;
+        if (this.musicTimer) {
+            clearTimeout(this.musicTimer);
+            this.musicTimer = null;
+        }
+    }
+    
+    playSound(type) {
+        if (!this.audioContext) return;
+        
+        // Check cooldown to prevent sound spam
+        const now = Date.now();
+        if (this.soundCooldowns[type] && now - this.soundCooldowns[type] < this.soundCooldownDuration) {
+            return; // Skip if sound was played recently
+        }
+        this.soundCooldowns[type] = now;
+        
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+        
+        const currentTime = this.audioContext.currentTime;
+        
+        switch(type) {
+            case 'collect-good': // Collect small positive number
+                oscillator.frequency.setValueAtTime(523, currentTime); // C5
+                oscillator.frequency.exponentialRampToValueAtTime(784, currentTime + 0.1); // G5
+                gainNode.gain.setValueAtTime(0.3, currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.15);
+                oscillator.start(currentTime);
+                oscillator.stop(currentTime + 0.15);
+                break;
+                
+            case 'collect-bad': // Collect negative number
+                oscillator.frequency.setValueAtTime(392, currentTime); // G4
+                oscillator.frequency.exponentialRampToValueAtTime(196, currentTime + 0.2); // G3
+                gainNode.gain.setValueAtTime(0.3, currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.2);
+                oscillator.start(currentTime);
+                oscillator.stop(currentTime + 0.2);
+                break;
+                
+            case 'crash': // Hit obstacle or big number
+                oscillator.type = 'sawtooth';
+                oscillator.frequency.setValueAtTime(100, currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(50, currentTime + 0.3);
+                gainNode.gain.setValueAtTime(0.5, currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.3);
+                oscillator.start(currentTime);
+                oscillator.stop(currentTime + 0.3);
+                break;
+                
+            case 'power-up': // Collect power-up
+                oscillator.frequency.setValueAtTime(440, currentTime); // A4
+                oscillator.frequency.exponentialRampToValueAtTime(880, currentTime + 0.05); // A5
+                oscillator.frequency.exponentialRampToValueAtTime(1320, currentTime + 0.1); // E6
+                gainNode.gain.setValueAtTime(0.3, currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.2);
+                oscillator.start(currentTime);
+                oscillator.stop(currentTime + 0.2);
+                break;
+        }
+    }
+    
     spawnRoadNumber() {
         // Don't spawn if already at max
         if (this.roadNumbers.length >= this.maxRoadNumbers) return;
         
         const { width, height } = this.scale;
         
-        // Predict max possible score: current score + sum of all smaller numbers on screen
-        let predictedMaxScore = this.playerScore;
-        for (let num of this.roadNumbers) {
-            const val = num.getData('value');
-            if (val < this.playerScore) {
-                predictedMaxScore += val;
+        // Generate number value: positive (1-10) or negative (-10 to -1)
+        // Difficulty increases over time (more dangerous spawns)
+        let numberValue;
+        const hasSmaller = this.roadNumbers.some(n => n.getData('value') > 0 && n.getData('value') < this.playerScore);
+        
+        // Difficulty scaling: every 30 seconds, reduce safe spawn chance by 5%
+        const difficultyLevel = Math.floor(this.gameTime / 30); // 0, 1, 2, 3...
+        const safeChance = Math.max(0.1, 0.3 - (difficultyLevel * 0.05)); // 30% → 25% → 20% → ... → 10% (min)
+        const negativeChance = Math.min(0.4, 0.2 + (difficultyLevel * 0.05)); // 20% → 25% → 30% → ... → 40% (max)
+        // Remaining goes to dangerous numbers
+        
+        if (!hasSmaller) {
+            // Always ensure at least one safe positive number exists (1-10)
+            numberValue = Phaser.Math.Between(1, Math.min(10, Math.max(1, this.playerScore - 1)));
+        } else {
+            const rand = Math.random();
+            
+            if (rand < safeChance) {
+                // Safe positive numbers (1-10, less than current score)
+                const maxSafe = Math.min(10, Math.max(1, this.playerScore - 1));
+                numberValue = Phaser.Math.Between(1, maxSafe);
+            } else if (rand < safeChance + negativeChance) {
+                // Negative numbers (-10 to -1) to subtract points
+                numberValue = Phaser.Math.Between(-10, -1);
+            } else {
+                // Dangerous numbers (MUCH larger than current score)
+                // Make them at least +20 above current score to avoid accidental collection
+                const minDanger = this.playerScore + 20;
+                const maxDanger = this.playerScore + 50;
+                numberValue = Phaser.Math.Between(minDanger, maxDanger);
             }
         }
         
-        // Generate number value based on predicted max
-        let numberValue;
-        const hasSmaller = this.roadNumbers.some(n => n.getData('value') < this.playerScore);
-        
-        if (!hasSmaller) {
-            // Always ensure at least one smaller number exists
-            numberValue = Phaser.Math.Between(1, Math.max(1, this.playerScore - 1));
-        } else if (Math.random() < 0.3) {
-            // Only 30% chance for safe numbers (was 50%)
-            numberValue = Phaser.Math.Between(1, Math.max(1, this.playerScore - 1));
-        } else {
-            // 70% chance for dangerous numbers - much more challenging!
-            const minDanger = this.playerScore;
-            const maxDanger = predictedMaxScore + 20; // Increased buffer
-            numberValue = Phaser.Math.Between(minDanger, maxDanger);
-        }
-        
-        // Random X position on road, with padding
+        // Find safe position that doesn't overlap with ANY objects
         let randomX;
+        let startY;
         let attempts = 0;
         let tooClose = true;
         
-        while (tooClose && attempts < 10) {
+        while (tooClose && attempts < 20) {
             randomX = Phaser.Math.Between(this.roadLeft + 80, this.roadRight - 80);
+            
+            // Always spawn far above screen - find the highest existing object
+            startY = -300; // Default
+            
+            // Check all objects (numbers, obstacles, power-ups)
+            const allObjects = [...this.roadNumbers, ...this.obstacles, ...this.powerUps];
+            
+            if (allObjects.length > 0) {
+                // Find the topmost object
+                let topmostY = 0;
+                for (let obj of allObjects) {
+                    if (obj.y < topmostY) {
+                        topmostY = obj.y;
+                    }
+                }
+                // Spawn above the topmost with spacing
+                startY = topmostY - 250 - Phaser.Math.Between(0, 100);
+            }
+            
             tooClose = false;
             
-            // Check distance from existing numbers (both X and Y for even distribution)
-            for (let existingNum of this.roadNumbers) {
-                const distX = Math.abs(existingNum.x - randomX);
+            // Check distance from ALL existing objects (X and Y)
+            for (let obj of allObjects) {
+                const distX = Math.abs(obj.x - randomX);
+                const distY = Math.abs(obj.y - startY);
                 
-                // Numbers should be far apart horizontally
-                if (distX < 120) {
+                // Objects should be far apart (check both X and Y)
+                if (distX < 150 && distY < 250) {
                     tooClose = true;
                     break;
                 }
@@ -273,26 +476,11 @@ class NumberGame extends Phaser.Scene {
             attempts++;
         }
         
-        // Always spawn far above screen - find the highest existing number
-        let startY = -300; // Default
-        
-        if (this.roadNumbers.length > 0) {
-            // Find the topmost (most negative Y) number
-            let topmostY = 0;
-            for (let num of this.roadNumbers) {
-                if (num.y < topmostY) {
-                    topmostY = num.y;
-                }
-            }
-            // Spawn above the topmost number with good spacing
-            startY = topmostY - 300 - Phaser.Math.Between(0, 100);
-        }
-        
-        // Create number text - same width as car
+        // Create number text - all numbers same white color
         const numberText = this.add.text(randomX, startY, numberValue.toString(), {
             fontSize: '72px',
             fontFamily: 'Arial',
-            color: '#ffffff',
+            color: '#ffffff', // All numbers white
             fontStyle: 'bold',
             stroke: '#000000',
             strokeThickness: 10
@@ -304,28 +492,51 @@ class NumberGame extends Phaser.Scene {
     }
     
     spawnObstacle() {
-        // Don't spawn if already at max
-        if (this.obstacles.length >= this.maxObstacles) return;
+        // Don't spawn if already at max (increases over time)
+        if (this.obstacles.length >= this.getMaxObstacles()) return;
         
         const { width, height } = this.scale;
         
-        // Random obstacle emoji
-        const obstacleEmojis = ['🐘', '🐄', '🐖', '🦏', '🪨', '💎', '🌵'];
-        const emoji = Phaser.Utils.Array.GetRandom(obstacleEmojis);
+        // Only rocks as obstacles
+        const emoji = '🪨'; // Just rock emoji
         
-        // Random X position on road, with padding
+        // Find safe position that doesn't overlap with ANY objects
         let randomX;
+        let startY;
         let attempts = 0;
         let tooClose = true;
         
-        while (tooClose && attempts < 10) {
+        while (tooClose && attempts < 20) {
             randomX = Phaser.Math.Between(this.roadLeft + 80, this.roadRight - 80);
+            
+            // Always spawn far above screen - find the highest existing object
+            startY = -400; // Default
+            
+            // Check all objects (numbers, obstacles, power-ups)
+            const allObjects = [...this.roadNumbers, ...this.obstacles, ...this.powerUps];
+            
+            if (allObjects.length > 0) {
+                // Find the topmost object
+                let topmostY = 0;
+                for (let obj of allObjects) {
+                    if (obj.y < topmostY) {
+                        topmostY = obj.y;
+                    }
+                }
+                // Spawn above the topmost with spacing
+                startY = topmostY - 300 - Phaser.Math.Between(0, 150);
+            }
+            
             tooClose = false;
             
-            // Check distance from existing obstacles and numbers
-            for (let obj of [...this.obstacles, ...this.roadNumbers]) {
+            // Check distance from ALL existing objects (X and Y)
+            for (let obj of allObjects) {
                 const distX = Math.abs(obj.x - randomX);
-                if (distX < 120) {
+                const distY = Math.abs(obj.y - startY);
+                
+                // Objects should be far apart (check both X and Y)
+                // Obstacles are bigger (128px), so need more space
+                if (distX < 180 && distY < 300) {
                     tooClose = true;
                     break;
                 }
@@ -333,26 +544,105 @@ class NumberGame extends Phaser.Scene {
             attempts++;
         }
         
-        // Always spawn far above screen - find the highest existing obstacle
-        let startY = -400;
-        
-        if (this.obstacles.length > 0) {
-            let topmostY = 0;
-            for (let obs of this.obstacles) {
-                if (obs.y < topmostY) {
-                    topmostY = obs.y;
-                }
-            }
-            startY = topmostY - 400 - Phaser.Math.Between(0, 200);
-        }
-        
-        // Create obstacle
+        // Create obstacle - much bigger and more visible!
         const obstacle = this.add.text(randomX, startY, emoji, {
-            fontSize: '64px'
+            fontSize: '128px' // Double size! (was 64px)
         });
         obstacle.setOrigin(0.5);
         
         this.obstacles.push(obstacle);
+    }
+    
+    spawnPowerUp() {
+        // Only spawn rarely (5% chance when called - reduced from 20%)
+        if (Math.random() > 0.05) return;
+        if (this.powerUps.length > 0) return; // Only 1 power-up at a time
+        
+        const { width, height } = this.scale;
+        
+        // Only one type: power-up to make car bigger (stronger)
+        const type = 'bigger';
+        const icon = '⚡'; // Lightning bolt for power
+        
+        // Random X position
+        const randomX = Phaser.Math.Between(this.roadLeft + 80, this.roadRight - 80);
+        const startY = -500 - Math.random() * 200;
+        
+        // Create power-up
+        const powerUp = this.add.text(randomX, startY, icon, {
+            fontSize: '72px' // Bigger for visibility
+        });
+        powerUp.setOrigin(0.5);
+        powerUp.setData('type', type);
+        
+        // Add glow effect by adding a circle behind
+        const glow = this.add.graphics();
+        glow.fillStyle(0xFFD700, 0.4); // Golden glow for power
+        glow.fillCircle(0, 0, 45);
+        powerUp.setData('glow', glow);
+        
+        this.powerUps.push(powerUp);
+    }
+    
+    checkPowerUpCollision() {
+        for (let i = this.powerUps.length - 1; i >= 0; i--) {
+            const powerUp = this.powerUps[i];
+            
+            const distance = Phaser.Math.Distance.Between(
+                powerUp.x, powerUp.y,
+                this.playerCar.x, this.playerCar.y
+            );
+            
+            if (distance < 80) {
+                const type = powerUp.getData('type');
+                
+                // Play power-up sound
+                this.playSound('power-up');
+                
+                // Activate power-up (always bigger now)
+                this.powerUpActive = true;
+                this.powerUpType = type;
+                this.powerUpEndTime = this.gameTime + 5; // 5 seconds
+                
+                // Make car bigger
+                this.playerCar.setScale(this.originalCarScale * 1.5); // 1.5x bigger
+                
+                // Create visual effect around car (pulsing circle with golden glow)
+                if (this.powerUpEffect) {
+                    this.powerUpEffect.destroy();
+                }
+                this.powerUpEffect = this.add.graphics();
+                this.powerUpEffect.lineStyle(6, 0xFFD700, 0.8); // Golden color
+                this.powerUpEffect.strokeCircle(0, 0, 100);
+                this.powerUpEffect.x = this.playerCar.x;
+                this.powerUpEffect.y = this.playerCar.y;
+                
+                // Store effect animation data
+                this.powerUpEffect.setData('pulseScale', 1);
+                this.powerUpEffect.setData('pulseDirection', 1);
+                
+                // Clean up power-up
+                const glow = powerUp.getData('glow');
+                if (glow) glow.destroy();
+                powerUp.destroy();
+                this.powerUps.splice(i, 1);
+            }
+        }
+    }
+    
+    shakeObject(obj) {
+        // Save original position
+        const originalX = obj.x;
+        
+        // Shake effect - rapid left-right movement
+        this.tweens.add({
+            targets: obj,
+            x: originalX - 10,
+            duration: 50,
+            yoyo: true,
+            repeat: 3, // Shake 4 times total
+            ease: 'Linear'
+        });
     }
     
     checkObstacleCollision() {
@@ -366,8 +656,16 @@ class NumberGame extends Phaser.Scene {
             );
             
             if (distance < 80) {
-                // Game over immediately!
-                this.endGame();
+                // Play crash sound
+                this.playSound('crash');
+                
+                // Shake the obstacle before game over
+                this.shakeObject(obs);
+                
+                // Game over after shake
+                this.time.delayedCall(200, () => {
+                    this.endGame();
+                });
                 return;
             }
         }
@@ -386,17 +684,56 @@ class NumberGame extends Phaser.Scene {
             if (distance < 100) {
                 const value = num.getData('value');
                 
-                // Update player score
-                if (value < this.playerScore) {
-                    this.playerScore += value;
-                } else {
-                    this.playerScore = Math.ceil(this.playerScore / 2);
+                // Check if collecting a number larger than current score -> GAME OVER
+                if (value > 0 && value >= this.playerScore) {
+                    // Play crash sound
+                    this.playSound('crash');
+                    
+                    // Shake the number before game over
+                    this.shakeObject(num);
+                    
+                    // Game over after shake
+                    this.time.delayedCall(200, () => {
+                        this.endGame();
+                    });
+                    return;
                 }
                 
-                // Check game over
+                // Play sound based on value
+                if (value < 0) {
+                    this.playSound('collect-bad'); // Negative number
+                } else {
+                    this.playSound('collect-good'); // Positive number
+                }
+                
+                // Reset countdown timer (collecting any number resets it to 15s)
+                this.countdown = 15;
+                
+                // Update player score (can be positive or negative)
+                this.playerScore += value;
+                
+                // Check game over (score <= 0)
                 if (this.playerScore <= 0) {
                     this.endGame();
                     return;
+                }
+                
+                // Level up when score exceeds 100 (only increase car size, no score subtraction)
+                if (this.playerScore >= 100) {
+                    const levels = Math.floor(this.playerScore / 100);
+                    const targetScale = 1.5 * Math.pow(1.05, levels);
+                    
+                    // Only update if not already at this level
+                    if (this.originalCarScale < targetScale) {
+                        this.originalCarScale = targetScale;
+                        
+                        // Update car scale (considering power-up state)
+                        if (this.powerUpActive) {
+                            this.playerCar.setScale(this.originalCarScale * 1.5);
+                        } else {
+                            this.playerCar.setScale(this.originalCarScale);
+                        }
+                    }
                 }
                 
                 // Update display
@@ -412,17 +749,75 @@ class NumberGame extends Phaser.Scene {
         }
     }
     
+    drawCountdownCircle() {
+        // Clear previous drawing
+        this.countdownCircle.clear();
+        
+        // Calculate progress (0 to 1, where 1 is full circle)
+        const progress = Math.max(0, this.countdown / this.maxCountdown);
+        
+        // Determine color based on remaining time
+        let color;
+        if (this.countdown <= 3) {
+            color = 0xFF0000; // Bright red when < 3s
+        } else if (this.countdown <= 5) {
+            color = 0xFFA500; // Orange when < 5s
+        } else {
+            color = 0x4CAF50; // Green when normal
+        }
+        
+        // Draw background circle (gray, thinner line for smaller circle)
+        this.countdownCircle.lineStyle(5, 0x333333, 0.3);
+        this.countdownCircle.strokeCircle(this.countdownCircleX, this.countdownCircleY, this.countdownRadius);
+        
+        // Draw progress arc (colored based on time remaining)
+        if (progress > 0) {
+            this.countdownCircle.lineStyle(5, color, 1);
+            
+            // Start from top (-90 degrees) and draw clockwise
+            const startAngle = -Math.PI / 2; // Top of circle
+            const endAngle = startAngle + (progress * Math.PI * 2); // Progress around circle
+            
+            // Create arc path
+            this.countdownCircle.beginPath();
+            this.countdownCircle.arc(
+                this.countdownCircleX,
+                this.countdownCircleY,
+                this.countdownRadius,
+                startAngle,
+                endAngle,
+                false // Clockwise
+            );
+            this.countdownCircle.strokePath();
+        }
+    }
+    
     update(time, delta) {
+        // Stop all updates if game is over
+        if (this.isGameOver) return;
+        
         // Update game time
         this.gameTime += delta / 1000; // Convert to seconds
+        
+        // Update countdown timer
+        this.countdown -= delta / 1000;
+        if (this.countdown <= 0) {
+            // Game over when countdown reaches 0
+            this.endGame();
+            return;
+        }
+        
+        // Update countdown circle display
+        this.drawCountdownCircle();
         
         // Animate road dashes moving down
         const { height } = this.scale;
         const totalDashSpace = this.dashHeight + this.dashGap;
+        const currentSpeed = this.getCurrentSpeed();
         
         for (let dash of this.roadDashes) {
             // Move dash down
-            dash.y += (this.roadSpeed * delta) / 1000;
+            dash.y += (currentSpeed * delta) / 1000;
             
             // Reset to top when it goes off bottom
             if (dash.y > height) {
@@ -434,7 +829,7 @@ class NumberGame extends Phaser.Scene {
         const objectGap = 150;
         for (let obj of this.roadsideObjects) {
             // Move object down at same speed as road
-            obj.y += (this.roadSpeed * delta) / 1000;
+            obj.y += (currentSpeed * delta) / 1000;
             
             // Reset to top when it goes off bottom
             if (obj.y > height + 50) {
@@ -449,11 +844,19 @@ class NumberGame extends Phaser.Scene {
         // Move road numbers down (they're "stationary" on road, but road moves toward car)
         for (let i = this.roadNumbers.length - 1; i >= 0; i--) {
             const num = this.roadNumbers[i];
-            num.y += (this.roadSpeed * delta) / 1000;
+            num.y += (currentSpeed * delta) / 1000;
             
-            // Remove if passed the car (gone past without collision) or off screen
-            if (num.y > this.playerY + 100) {
-                num.destroy();
+            // Fade out when passing the car
+            if (num.y > this.playerY && !num.getData('fading')) {
+                num.setData('fading', true);
+                this.tweens.add({
+                    targets: num,
+                    alpha: 0,
+                    duration: 300,
+                    onComplete: () => {
+                        num.destroy();
+                    }
+                });
                 this.roadNumbers.splice(i, 1);
             }
         }
@@ -461,27 +864,105 @@ class NumberGame extends Phaser.Scene {
         // Move obstacles down
         for (let i = this.obstacles.length - 1; i >= 0; i--) {
             const obs = this.obstacles[i];
-            obs.y += (this.roadSpeed * delta) / 1000;
+            obs.y += (currentSpeed * delta) / 1000;
             
-            // Remove if passed the car
-            if (obs.y > this.playerY + 100) {
-                obs.destroy();
+            // Fade out when passing the car
+            if (obs.y > this.playerY && !obs.getData('fading')) {
+                obs.setData('fading', true);
+                this.tweens.add({
+                    targets: obs,
+                    alpha: 0,
+                    duration: 300,
+                    onComplete: () => {
+                        obs.destroy();
+                    }
+                });
                 this.obstacles.splice(i, 1);
             }
         }
         
-        // Always maintain numbers and obstacles on screen
+        // Move power-ups down
+        for (let i = this.powerUps.length - 1; i >= 0; i--) {
+            const powerUp = this.powerUps[i];
+            powerUp.y += (currentSpeed * delta) / 1000;
+            
+            // Update glow position
+            const glow = powerUp.getData('glow');
+            if (glow) {
+                glow.x = powerUp.x;
+                glow.y = powerUp.y;
+            }
+            
+            // Fade out when passing the car
+            if (powerUp.y > this.playerY && !powerUp.getData('fading')) {
+                powerUp.setData('fading', true);
+                this.tweens.add({
+                    targets: [powerUp, glow],
+                    alpha: 0,
+                    duration: 300,
+                    onComplete: () => {
+                        if (glow) glow.destroy();
+                        powerUp.destroy();
+                    }
+                });
+                this.powerUps.splice(i, 1);
+            }
+        }
+        
+        // Animate power-up effect (pulsing circle)
+        if (this.powerUpActive && this.powerUpEffect) {
+            // Update position to follow car
+            this.powerUpEffect.x = this.playerCar.x;
+            this.powerUpEffect.y = this.playerCar.y;
+            
+            // Pulsing animation
+            let pulseScale = this.powerUpEffect.getData('pulseScale');
+            let pulseDirection = this.powerUpEffect.getData('pulseDirection');
+            
+            pulseScale += pulseDirection * 0.02;
+            
+            if (pulseScale >= 1.3) {
+                pulseDirection = -1;
+            } else if (pulseScale <= 0.9) {
+                pulseDirection = 1;
+            }
+            
+            this.powerUpEffect.setData('pulseScale', pulseScale);
+            this.powerUpEffect.setData('pulseDirection', pulseDirection);
+            this.powerUpEffect.setScale(pulseScale);
+        }
+        
+        // Check power-up expiration
+        if (this.powerUpActive && this.gameTime >= this.powerUpEndTime) {
+            this.powerUpActive = false;
+            this.powerUpType = null;
+            this.playerCar.setScale(this.originalCarScale); // Reset to normal
+            
+            // Remove visual effect
+            if (this.powerUpEffect) {
+                this.powerUpEffect.destroy();
+                this.powerUpEffect = null;
+            }
+        }
+        
+        // Occasionally spawn power-ups (1% chance per frame)
+        if (Math.random() < 0.01) {
+            this.spawnPowerUp();
+        }
+        
+        // Always maintain numbers and obstacles on screen (difficulty scales)
         while (this.roadNumbers.length < this.maxRoadNumbers) {
             this.spawnRoadNumber();
         }
         
-        while (this.obstacles.length < this.maxObstacles) {
+        while (this.obstacles.length < this.getMaxObstacles()) {
             this.spawnObstacle();
         }
         
         // Check collisions
         this.checkObstacleCollision(); // Check obstacles first (instant death)
         this.checkNumberCollision();
+        this.checkPowerUpCollision(); // Check power-up collection
         
         // Smooth car movement
         if (this.isDragging || Math.abs(this.playerX - this.targetX) > 1) {
@@ -489,13 +970,39 @@ class NumberGame extends Phaser.Scene {
             const smoothing = 0.15;
             this.playerX = Phaser.Math.Linear(this.playerX, this.targetX, smoothing);
             
-            // Move car and score text together
+            // Move car, score text, and countdown circle together
             this.playerCar.x = this.playerX;
             this.scoreText.x = this.playerX;
+            this.countdownCircleX = this.playerX;
         }
     }
     
-    endGame() {
+    playDeathAnimation() {
+        // Set game over flag to stop movements
+        this.isGameOver = true;
+        
+        // Hide score and countdown circle during animation
+        this.scoreText.setVisible(false);
+        this.countdownCircle.setVisible(false);
+        
+        const { height } = this.scale;
+        
+        // Death animation: rotate 720° and fall down off screen
+        this.tweens.add({
+            targets: this.playerCar,
+            angle: 720, // Rotate 2 full circles
+            y: height + 200, // Fall down below screen
+            alpha: 0.5, // Fade out a bit
+            duration: 1000, // 1 second
+            ease: 'Cubic.easeIn', // Accelerate as it falls (gravity effect)
+            onComplete: () => {
+                // After animation, show game over
+                this.showGameOver();
+            }
+        });
+    }
+    
+    showGameOver() {
         const { width, height } = this.scale;
         
         // Game over overlay
@@ -504,7 +1011,7 @@ class NumberGame extends Phaser.Scene {
         overlay.fillRect(0, 0, width, height);
         
         // Game over text
-        this.add.text(width / 2, height / 2 - 80, 'ゲームオーバー', {
+        this.add.text(width / 2, height / 2 - 40, 'ゲームオーバー', {
             fontSize: '64px',
             fontFamily: 'Arial',
             color: '#FF5252',
@@ -513,17 +1020,9 @@ class NumberGame extends Phaser.Scene {
             strokeThickness: 8
         }).setOrigin(0.5);
         
-        // Time survived
-        this.add.text(width / 2, height / 2, `${Math.floor(this.gameTime)}秒`, {
-            fontSize: '48px',
-            fontFamily: 'Arial',
-            color: '#ffffff',
-            fontStyle: 'bold'
-        }).setOrigin(0.5);
-        
         // Restart instruction
-        this.add.text(width / 2, height / 2 + 80, 'タップしてもういちど!', {
-            fontSize: '24px',
+        this.add.text(width / 2, height / 2 + 60, 'タップしてもういちど!', {
+            fontSize: '32px',
             fontFamily: 'Arial',
             color: '#ffffff'
         }).setOrigin(0.5);
@@ -532,6 +1031,19 @@ class NumberGame extends Phaser.Scene {
         this.input.once('pointerdown', () => {
             this.scene.restart();
         });
+    }
+    
+    endGame() {
+        // Stop background music
+        this.stopBackgroundMusic();
+        
+        // Play death animation first, then show game over
+        this.playDeathAnimation();
+    }
+    
+    shutdown() {
+        // Called when scene is destroyed (e.g., going back to menu)
+        this.stopBackgroundMusic();
     }
 }
 
