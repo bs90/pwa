@@ -62,28 +62,26 @@ class NumberGame extends Phaser.Scene {
         this.playerX = width / 2;
         this.playerY = height * 0.85; // Near bottom
         
-        // Player car sprite - simple 2D top view, bigger and rotated correctly
+        // Player car sprite - NO rotation, original orientation
         if (this.textures.exists('car')) {
             this.playerCar = this.add.sprite(this.playerX, this.playerY, 'car');
-            this.playerCar.setScale(1.5); // Much bigger!
-            this.playerCar.setAngle(-90); // Car image points right, rotate -90 to point up
+            this.playerCar.setScale(1.5); // Big and clear
         } else {
-            // Fallback: draw a simple car from top view
+            // Fallback: draw a simple car
             console.warn('Using fallback car drawing');
             const carGraphics = this.add.graphics();
-            // Simple rectangle car (top view)
             carGraphics.fillStyle(0xFF6B6B, 1);
-            carGraphics.fillRect(-25, -40, 50, 80);
+            carGraphics.fillRect(-40, -25, 80, 50);
             carGraphics.fillStyle(0x000000, 1);
-            carGraphics.fillRect(-20, -30, 40, 25); // Window
-            const carTexture = carGraphics.generateTexture('carFallback', 50, 80);
+            carGraphics.fillRect(-30, -20, 25, 40);
+            const carTexture = carGraphics.generateTexture('carFallback', 80, 50);
             carGraphics.destroy();
             this.playerCar = this.add.sprite(this.playerX, this.playerY, 'carFallback');
-            this.playerCar.setScale(1.5); // Much bigger!
+            this.playerCar.setScale(1.5);
         }
         
-        // Player number text below car - bigger and clearer
-        this.playerText = this.add.text(this.playerX, this.playerY + 60, this.playerNumber.toString(), {
+        // Player number text below car
+        this.playerText = this.add.text(this.playerX, this.playerY + 80, this.playerNumber.toString(), {
             fontSize: '72px',
             fontFamily: 'Arial',
             color: '#FFD700',
@@ -97,21 +95,26 @@ class NumberGame extends Phaser.Scene {
         this.objects = [];
         this.gameOver = false;
         this.score = 0;
-        this.objectsCollected = 0; // For difficulty progression
+        this.objectsCollected = 0;
+        
+        // New logic: maintain 2-3 numbers on screen at all times
+        this.activeNumbers = 0;
+        this.minActiveNumbers = 2;
+        this.maxActiveNumbers = 3;
         
         // Difficulty settings
-        this.spawnDelay = 4500; // Slower spawn (was 3000)
-        this.objectSpeed = 5000; // Much slower movement (was 3000)
+        this.objectSpeed = 4000; // Speed of numbers falling
         this.minNumber = 1;
         this.maxNumber = 15;
         
-        // Spawn multiple objects at once
-        this.spawnTimer = this.time.addEvent({
-            delay: this.spawnDelay,
-            callback: this.spawnMultipleObjects,
-            callbackScope: this,
-            loop: true
-        });
+        // Road boundaries for random X position
+        const roadWidth = width * 0.7;
+        this.roadLeft = (width - roadWidth) / 2 + 50; // Add padding
+        this.roadRight = width - (width - roadWidth) / 2 - 50;
+        
+        // Spawn initial numbers
+        this.spawnRandomNumber();
+        this.spawnRandomNumber();
         
         // Instructions
         this.titleText = this.add.text(width / 2, 50, 'すうじげーむ', {
@@ -158,9 +161,9 @@ class NumberGame extends Phaser.Scene {
             this.isDragging = false;
         });
         
-        // Keep player within bounds
-        this.minX = 100;
-        this.maxX = width - 100;
+        // Keep player within road bounds
+        this.minX = this.roadLeft + 50;
+        this.maxX = this.roadRight - 50;
     }
     
     drawTopDownRoad() {
@@ -208,77 +211,38 @@ class NumberGame extends Phaser.Scene {
         }
     }
     
-    spawnMultipleObjects() {
-        if (this.gameOver) return;
-        
-        // Always spawn exactly 2-3 numbers with GUARANTEED choices:
-        // - At least 1 smaller (safe to collect)
-        // - At least 1 larger (dangerous)
-        const count = Phaser.Math.Between(2, 3);
-        const lanes = [-150, 0, 150];
-        const usedLanes = [];
-        
-        for (let i = 0; i < count; i++) {
-            // Pick a random lane that hasn't been used
-            const availableLanes = lanes.filter(lane => !usedLanes.includes(lane));
-            if (availableLanes.length === 0) break;
-            
-            const lane = Phaser.Utils.Array.GetRandom(availableLanes);
-            usedLanes.push(lane);
-            
-            let number;
-            
-            if (i === 0) {
-                // First number: ALWAYS smaller than player (safe choice)
-                const maxSafe = Math.max(1, this.playerNumber - 1);
-                number = Phaser.Math.Between(this.minNumber, maxSafe);
-            } else if (i === 1) {
-                // Second number: ALWAYS larger than player (risky choice)
-                const minRisky = this.playerNumber + 1;
-                number = Phaser.Math.Between(minRisky, Math.min(this.maxNumber, this.playerNumber + 10));
-            } else {
-                // Third number (if count=3): Random (could be smaller or larger)
-                const rand = Math.random();
-                if (rand < 0.5) {
-                    // Another safe option
-                    const maxSafe = Math.max(1, this.playerNumber - 1);
-                    number = Phaser.Math.Between(this.minNumber, maxSafe);
-                } else {
-                    // Another risky option
-                    const minRisky = this.playerNumber + 1;
-                    number = Phaser.Math.Between(minRisky, Math.min(this.maxNumber, this.playerNumber + 10));
-                }
-            }
-            
-            this.spawnObjectAtLane(lane, number);
-        }
-    }
-    
-    spawnObjectAtLane(lane, number) {
+    spawnRandomNumber() {
         if (this.gameOver) return;
         
         const { width, height } = this.scale;
         
-        // Progressive difficulty: increase max number range
-        if (this.objectsCollected > 10) {
+        // Progressive difficulty
+        if (this.objectsCollected > 10 && this.maxNumber < 20) {
             this.maxNumber = 20;
-        }
-        if (this.objectsCollected > 20) {
+        } else if (this.objectsCollected > 20 && this.maxNumber < 30) {
             this.maxNumber = 30;
-        }
-        if (this.objectsCollected > 30) {
+        } else if (this.objectsCollected > 30 && this.maxNumber < 50) {
             this.maxNumber = 50;
         }
         
-        // Simple 2D top-down: spawn from top, move straight down
-        const startY = -50; // Start above screen
-        const endY = height + 50; // End below screen
+        // Generate random number (mix of smaller and larger)
+        let number;
+        const rand = Math.random();
+        if (rand < 0.5) {
+            // 50% chance: smaller than player (safe)
+            number = Phaser.Math.Between(this.minNumber, Math.max(1, this.playerNumber - 1));
+        } else {
+            // 50% chance: larger than player (dangerous)
+            number = Phaser.Math.Between(this.playerNumber + 1, Math.min(this.maxNumber, this.playerNumber + 10));
+        }
         
-        // Calculate X position for this lane (simple, no scaling)
-        const laneX = width / 2 + lane;
+        // Random X position within road boundaries (not in lanes!)
+        const randomX = Phaser.Math.Between(this.roadLeft, this.roadRight);
+        const startY = -50;
+        const endY = height + 50;
         
-        // Create number text - BIG and clear for kids
-        const text = this.add.text(laneX, startY, number.toString(), {
+        // Create number text - BIG and clear
+        const text = this.add.text(randomX, startY, number.toString(), {
             fontSize: '80px',
             fontFamily: 'Arial',
             color: '#ffffff',
@@ -288,72 +252,95 @@ class NumberGame extends Phaser.Scene {
         });
         text.setOrigin(0.5);
         text.setData('value', number);
+        text.setData('collected', false);
         
-        // Animate straight down (simple movement)
+        this.activeNumbers++;
+        
+        // Animate straight down
         this.tweens.add({
             targets: text,
             y: endY,
             duration: this.objectSpeed,
             ease: 'Linear',
-            onUpdate: () => {
-                // Check collision continuously as number moves down
-                if (this.gameOver) return;
-                
-                const distance = Phaser.Math.Distance.Between(
-                    text.x, text.y,
-                    this.playerX, this.playerY
-                );
-                
-                if (distance < 100 && text.getData('collected') !== true) {
-                    text.setData('collected', true);
-                    const objNumber = text.getData('value');
-                    
-                    if (objNumber < this.playerNumber) {
-                        // Collect smaller number: add to player number AND add to score
-                        this.playerNumber += objNumber;
-                        this.score += objNumber;
-                        this.objectsCollected++;
-                    } else if (objNumber === this.playerNumber) {
-                        // Equal: just add to score, player number stays same
-                        this.score += objNumber;
-                        this.objectsCollected++;
-                    } else {
-                        // Hit larger number: player number divided by 2 (rounded up)
-                        this.playerNumber = Math.ceil(this.playerNumber / 2);
-                        // Score also reduced by half
-                        this.score = Math.ceil(this.score / 2);
-                        
-                        // Check game over
-                        if (this.playerNumber <= 0) {
-                            this.endGame();
-                        }
-                    }
-                    
-                    // Update display
-                    this.playerText.setText(this.playerNumber.toString());
-                    this.scoreText.setText('スコア: ' + this.score);
-                    
-                    // Fade out collected number
-                    this.tweens.add({
-                        targets: text,
-                        alpha: 0,
-                        scale: 2,
-                        duration: 300,
-                        onComplete: () => text.destroy()
-                    });
-                }
-            },
             onComplete: () => {
+                // Number reached bottom without collision
                 text.destroy();
+                this.activeNumbers--;
+                // Spawn new number to maintain 2-3 on screen
+                if (this.activeNumbers < this.minActiveNumbers) {
+                    this.spawnRandomNumber();
+                }
             }
         });
         
         this.objects.push(text);
     }
     
+    checkCollisions() {
+        if (this.gameOver) return;
+        
+        // Check collision with car sprite bounds
+        const carBounds = this.playerCar.getBounds();
+        
+        for (let i = this.objects.length - 1; i >= 0; i--) {
+            const obj = this.objects[i];
+            if (!obj || obj.getData('collected')) continue;
+            
+            const objBounds = obj.getBounds();
+            
+            // Check if number overlaps with car
+            if (Phaser.Geom.Intersects.RectangleToRectangle(carBounds, objBounds)) {
+                obj.setData('collected', true);
+                const objNumber = obj.getData('value');
+                
+                if (objNumber < this.playerNumber) {
+                    // Collect smaller: add to player number
+                    this.playerNumber += objNumber;
+                    this.score += objNumber;
+                    this.objectsCollected++;
+                } else if (objNumber === this.playerNumber) {
+                    // Equal: just add to score
+                    this.score += objNumber;
+                    this.objectsCollected++;
+                } else {
+                    // Hit larger: divide by 2
+                    this.playerNumber = Math.ceil(this.playerNumber / 2);
+                    this.score = Math.ceil(this.score / 2);
+                    
+                    if (this.playerNumber <= 0) {
+                        this.endGame();
+                        return;
+                    }
+                }
+                
+                // Update display
+                this.playerText.setText(this.playerNumber.toString());
+                this.scoreText.setText('スコア: ' + this.score);
+                
+                // Remove collected number
+                this.activeNumbers--;
+                this.objects.splice(i, 1);
+                
+                // Fade out
+                this.tweens.add({
+                    targets: obj,
+                    alpha: 0,
+                    scale: 2,
+                    duration: 300,
+                    onComplete: () => {
+                        obj.destroy();
+                        // Spawn new number to maintain 2-3 on screen
+                        if (this.activeNumbers < this.maxActiveNumbers && !this.gameOver) {
+                            this.spawnRandomNumber();
+                        }
+                    }
+                });
+            }
+        }
+    }
+    
     endGame() {
         this.gameOver = true;
-        this.spawnTimer.destroy();
         
         const { width, height } = this.scale;
         
@@ -404,6 +391,9 @@ class NumberGame extends Phaser.Scene {
             this.playerCar.x = this.playerX;
             this.playerText.x = this.playerX;
         }
+        
+        // Check collisions with car
+        this.checkCollisions();
         
         // Clean up destroyed objects
         this.objects = this.objects.filter(obj => obj.active);
