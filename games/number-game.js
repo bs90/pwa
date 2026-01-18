@@ -74,8 +74,8 @@ class NumberGame extends Phaser.Scene {
         // Player score/number - starts at 10
         this.playerScore = 10;
         
-        // Display score below car - BIG and clear
-        this.scoreText = this.add.text(this.playerX, this.playerY + 80, this.playerScore.toString(), {
+        // Display score below car - far below to avoid overlap
+        this.scoreText = this.add.text(this.playerX, this.playerY + 120, this.playerScore.toString(), {
             fontSize: '72px',
             fontFamily: 'Arial',
             color: '#FFD700',
