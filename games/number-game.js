@@ -215,16 +215,28 @@ class NumberGame extends Phaser.Scene {
         
         const { width, height } = this.scale;
         
-        // Generate number value
+        // Predict max possible score: current score + sum of all smaller numbers on screen
+        let predictedMaxScore = this.playerScore;
+        for (let num of this.roadNumbers) {
+            const val = num.getData('value');
+            if (val < this.playerScore) {
+                predictedMaxScore += val;
+            }
+        }
+        
+        // Generate number value based on predicted max
         let numberValue;
         const hasSmaller = this.roadNumbers.some(n => n.getData('value') < this.playerScore);
         
-        if (!hasSmaller || Math.random() < 0.4) {
-            // Ensure at least one smaller number, or 40% chance for smaller
+        if (!hasSmaller || Math.random() < 0.5) {
+            // 50% chance for smaller (safe) - between 1 and current score-1
             numberValue = Phaser.Math.Between(1, Math.max(1, this.playerScore - 1));
         } else {
-            // Larger or equal
-            numberValue = Phaser.Math.Between(this.playerScore, this.playerScore + 10);
+            // 50% chance for dangerous - use predicted max score
+            // Range: current score to predicted max + some buffer
+            const minDanger = this.playerScore;
+            const maxDanger = predictedMaxScore + 15;
+            numberValue = Phaser.Math.Between(minDanger, maxDanger);
         }
         
         // Random X position on road, with padding
@@ -236,10 +248,13 @@ class NumberGame extends Phaser.Scene {
             randomX = Phaser.Math.Between(this.roadLeft + 80, this.roadRight - 80);
             tooClose = false;
             
-            // Check distance from existing numbers (only X distance matters for spawn)
+            // Check distance from existing numbers (both X and Y for even distribution)
             for (let existingNum of this.roadNumbers) {
                 const distX = Math.abs(existingNum.x - randomX);
-                if (distX < 150) { // Minimum horizontal distance
+                const distY = Math.abs(existingNum.y - (-300)); // Default spawn Y
+                
+                // Numbers should be far apart in both dimensions
+                if (distX < 150 || distY < 200) {
                     tooClose = true;
                     break;
                 }
@@ -247,11 +262,19 @@ class NumberGame extends Phaser.Scene {
             attempts++;
         }
         
-        // Spawn far above screen (relative to "road" which is static)
-        const startY = -200 - Math.random() * 300; // Random offset so they don't align
+        // Spawn evenly distributed - calculate Y based on number count
+        // Instead of random, space them out evenly above screen
+        let startY;
+        if (this.roadNumbers.length === 0) {
+            startY = -300;
+        } else if (this.roadNumbers.length === 1) {
+            startY = -600;
+        } else {
+            startY = -900;
+        }
         
-        // Get car width for size reference
-        const carWidth = this.playerCar.displayWidth;
+        // Add small random offset to avoid perfect alignment
+        startY += Phaser.Math.Between(-50, 50);
         
         // Create number text - same width as car
         const numberText = this.add.text(randomX, startY, numberValue.toString(), {
