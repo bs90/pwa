@@ -95,6 +95,10 @@ class NumberGame extends Phaser.Scene {
         this.maxRoadNumbers = 3;
         this.minNumberGap = 200; // Minimum distance between numbers
         
+        // Game time tracking
+        this.gameTime = 0; // Track elapsed time in seconds
+        this.lastScoreDeduct = 0; // Last time we deducted score
+        
         // Spawn initial numbers
         this.spawnRoadNumber();
         this.spawnRoadNumber();
@@ -228,14 +232,16 @@ class NumberGame extends Phaser.Scene {
         let numberValue;
         const hasSmaller = this.roadNumbers.some(n => n.getData('value') < this.playerScore);
         
-        if (!hasSmaller || Math.random() < 0.5) {
-            // 50% chance for smaller (safe) - between 1 and current score-1
+        if (!hasSmaller) {
+            // Always ensure at least one smaller number exists
+            numberValue = Phaser.Math.Between(1, Math.max(1, this.playerScore - 1));
+        } else if (Math.random() < 0.3) {
+            // Only 30% chance for safe numbers (was 50%)
             numberValue = Phaser.Math.Between(1, Math.max(1, this.playerScore - 1));
         } else {
-            // 50% chance for dangerous - use predicted max score
-            // Range: current score to predicted max + some buffer
+            // 70% chance for dangerous numbers - much more challenging!
             const minDanger = this.playerScore;
-            const maxDanger = predictedMaxScore + 15;
+            const maxDanger = predictedMaxScore + 20; // Increased buffer
             numberValue = Phaser.Math.Between(minDanger, maxDanger);
         }
         
@@ -325,6 +331,26 @@ class NumberGame extends Phaser.Scene {
     }
     
     update(time, delta) {
+        // Update game time
+        this.gameTime += delta / 1000; // Convert to seconds
+        
+        // Increase speed over time (starts at 200, increases 10 every 10 seconds)
+        const speedIncrease = Math.floor(this.gameTime / 10) * 10;
+        this.roadSpeed = 200 + speedIncrease;
+        
+        // Deduct 1 point every second
+        if (Math.floor(this.gameTime) > this.lastScoreDeduct) {
+            this.lastScoreDeduct = Math.floor(this.gameTime);
+            this.playerScore = Math.max(0, this.playerScore - 1);
+            this.scoreText.setText(this.playerScore.toString());
+            
+            // Game over if score reaches 0
+            if (this.playerScore <= 0) {
+                this.endGame();
+                return;
+            }
+        }
+        
         // Animate road dashes moving down
         const { height } = this.scale;
         const totalDashSpace = this.dashHeight + this.dashGap;
@@ -385,6 +411,45 @@ class NumberGame extends Phaser.Scene {
             this.playerCar.x = this.playerX;
             this.scoreText.x = this.playerX;
         }
+    }
+    
+    endGame() {
+        const { width, height } = this.scale;
+        
+        // Game over overlay
+        const overlay = this.add.graphics();
+        overlay.fillStyle(0x000000, 0.7);
+        overlay.fillRect(0, 0, width, height);
+        
+        // Game over text
+        this.add.text(width / 2, height / 2 - 80, 'ゲームオーバー', {
+            fontSize: '64px',
+            fontFamily: 'Arial',
+            color: '#FF5252',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 8
+        }).setOrigin(0.5);
+        
+        // Time survived
+        this.add.text(width / 2, height / 2, `${Math.floor(this.gameTime)}秒`, {
+            fontSize: '48px',
+            fontFamily: 'Arial',
+            color: '#ffffff',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+        
+        // Restart instruction
+        this.add.text(width / 2, height / 2 + 80, 'タップしてもういちど!', {
+            fontSize: '24px',
+            fontFamily: 'Arial',
+            color: '#ffffff'
+        }).setOrigin(0.5);
+        
+        // Allow restart
+        this.input.once('pointerdown', () => {
+            this.scene.restart();
+        });
     }
 }
 
