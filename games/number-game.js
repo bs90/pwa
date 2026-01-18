@@ -71,6 +71,20 @@ class NumberGame extends Phaser.Scene {
             this.playerCar.setScale(1.5);
         }
         
+        // Player score/number - starts at 10
+        this.playerScore = 10;
+        
+        // Display score below car - BIG and clear
+        this.scoreText = this.add.text(this.playerX, this.playerY + 80, this.playerScore.toString(), {
+            fontSize: '72px',
+            fontFamily: 'Arial',
+            color: '#FFD700',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 8
+        });
+        this.scoreText.setOrigin(0.5);
+        
         // Touch controls
         this.isDragging = false;
         this.targetX = width / 2;
@@ -218,7 +232,10 @@ class NumberGame extends Phaser.Scene {
             this.targetX = Phaser.Math.Clamp(this.targetX, this.minX, this.maxX);
             const smoothing = 0.15;
             this.playerX = Phaser.Math.Linear(this.playerX, this.targetX, smoothing);
+            
+            // Move car and score text together
             this.playerCar.x = this.playerX;
+            this.scoreText.x = this.playerX;
         }
     }
 }
