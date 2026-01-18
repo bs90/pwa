@@ -1,7 +1,7 @@
 // ===== PWA App Main Script =====
 
 // Cache version (must match sw.js)
-const CACHE_VERSION = '202601181853';
+const CACHE_VERSION = '202601181909';
 
 // Update cache version display on page load
 window.addEventListener('DOMContentLoaded', () => {

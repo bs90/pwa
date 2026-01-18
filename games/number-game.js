@@ -123,9 +123,6 @@ class NumberGame extends Phaser.Scene {
         // Game state
         this.isGameOver = false;
         
-        // Initialize simple sound effects using Web Audio API
-        this.initSounds();
-        
         // Spawn initial numbers
         this.spawnRoadNumber();
         this.spawnRoadNumber();
@@ -253,146 +250,6 @@ class NumberGame extends Phaser.Scene {
         return Math.min(5, 2 + Math.floor(this.gameTime / 60));
     }
     
-    initSounds() {
-        // Create Audio Context for sound effects
-        try {
-            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            
-            // Sound cooldown system to prevent overlapping sounds
-            this.soundCooldowns = {
-                'collect-good': 0,
-                'collect-bad': 0,
-                'crash': 0,
-                'power-up': 0
-            };
-            this.soundCooldownDuration = 100; // 100ms cooldown between same sound
-            
-            this.startBackgroundMusic();
-        } catch (e) {
-            console.warn('Web Audio API not supported');
-            this.audioContext = null;
-        }
-    }
-    
-    startBackgroundMusic() {
-        if (!this.audioContext) return;
-        
-        // Track music timer to stop when leaving game
-        this.musicTimer = null;
-        this.isMusicPlaying = true;
-        
-        // Create a simple cheerful melody loop
-        const melody = [
-            { note: 523.25, duration: 0.3 },  // C5
-            { note: 587.33, duration: 0.3 },  // D5
-            { note: 659.25, duration: 0.3 },  // E5
-            { note: 698.46, duration: 0.3 },  // F5
-            { note: 783.99, duration: 0.6 },  // G5
-            { note: 698.46, duration: 0.3 },  // F5
-            { note: 659.25, duration: 0.3 },  // E5
-            { note: 587.33, duration: 0.6 },  // D5
-        ];
-        
-        const playMelody = () => {
-            // Stop if game over or music stopped
-            if (this.isGameOver || !this.isMusicPlaying) return;
-            
-            let currentTime = this.audioContext.currentTime;
-            
-            melody.forEach((note, index) => {
-                const osc = this.audioContext.createOscillator();
-                const gain = this.audioContext.createGain();
-                
-                osc.connect(gain);
-                gain.connect(this.audioContext.destination);
-                
-                osc.frequency.value = note.note;
-                osc.type = 'sine';
-                
-                gain.gain.setValueAtTime(0.1, currentTime); // Quiet background music
-                gain.gain.exponentialRampToValueAtTime(0.01, currentTime + note.duration);
-                
-                osc.start(currentTime);
-                osc.stop(currentTime + note.duration);
-                
-                currentTime += note.duration;
-            });
-            
-            // Calculate total duration and schedule next loop
-            const totalDuration = melody.reduce((sum, note) => sum + note.duration, 0);
-            this.musicTimer = setTimeout(() => playMelody(), totalDuration * 1000);
-        };
-        
-        // Start playing
-        playMelody();
-    }
-    
-    stopBackgroundMusic() {
-        this.isMusicPlaying = false;
-        if (this.musicTimer) {
-            clearTimeout(this.musicTimer);
-            this.musicTimer = null;
-        }
-    }
-    
-    playSound(type) {
-        if (!this.audioContext) return;
-        
-        // Check cooldown to prevent sound spam
-        const now = Date.now();
-        if (this.soundCooldowns[type] && now - this.soundCooldowns[type] < this.soundCooldownDuration) {
-            return; // Skip if sound was played recently
-        }
-        this.soundCooldowns[type] = now;
-        
-        const oscillator = this.audioContext.createOscillator();
-        const gainNode = this.audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(this.audioContext.destination);
-        
-        const currentTime = this.audioContext.currentTime;
-        
-        switch(type) {
-            case 'collect-good': // Collect small positive number
-                oscillator.frequency.setValueAtTime(523, currentTime); // C5
-                oscillator.frequency.exponentialRampToValueAtTime(784, currentTime + 0.1); // G5
-                gainNode.gain.setValueAtTime(0.3, currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.15);
-                oscillator.start(currentTime);
-                oscillator.stop(currentTime + 0.15);
-                break;
-                
-            case 'collect-bad': // Collect negative number
-                oscillator.frequency.setValueAtTime(392, currentTime); // G4
-                oscillator.frequency.exponentialRampToValueAtTime(196, currentTime + 0.2); // G3
-                gainNode.gain.setValueAtTime(0.3, currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.2);
-                oscillator.start(currentTime);
-                oscillator.stop(currentTime + 0.2);
-                break;
-                
-            case 'crash': // Hit obstacle or big number
-                oscillator.type = 'sawtooth';
-                oscillator.frequency.setValueAtTime(100, currentTime);
-                oscillator.frequency.exponentialRampToValueAtTime(50, currentTime + 0.3);
-                gainNode.gain.setValueAtTime(0.5, currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.3);
-                oscillator.start(currentTime);
-                oscillator.stop(currentTime + 0.3);
-                break;
-                
-            case 'power-up': // Collect power-up
-                oscillator.frequency.setValueAtTime(440, currentTime); // A4
-                oscillator.frequency.exponentialRampToValueAtTime(880, currentTime + 0.05); // A5
-                oscillator.frequency.exponentialRampToValueAtTime(1320, currentTime + 0.1); // E6
-                gainNode.gain.setValueAtTime(0.3, currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.2);
-                oscillator.start(currentTime);
-                oscillator.stop(currentTime + 0.2);
-                break;
-        }
-    }
     
     spawnRoadNumber() {
         // Don't spawn if already at max
@@ -487,6 +344,13 @@ class NumberGame extends Phaser.Scene {
         });
         numberText.setOrigin(0.5);
         numberText.setData('value', numberValue);
+        
+        // Add random horizontal movement (slow drift)
+        // Random direction: -1 (left) or 1 (right)
+        const horizontalDirection = Math.random() < 0.5 ? -1 : 1;
+        // Random slow speed: 20-50 pixels per second
+        const horizontalSpeed = Phaser.Math.Between(20, 50) * horizontalDirection;
+        numberText.setData('horizontalSpeed', horizontalSpeed);
         
         this.roadNumbers.push(numberText);
     }
@@ -596,8 +460,6 @@ class NumberGame extends Phaser.Scene {
             if (distance < 80) {
                 const type = powerUp.getData('type');
                 
-                // Play power-up sound
-                this.playSound('power-up');
                 
                 // Activate power-up (always bigger now)
                 this.powerUpActive = true;
@@ -656,9 +518,6 @@ class NumberGame extends Phaser.Scene {
             );
             
             if (distance < 80) {
-                // Play crash sound
-                this.playSound('crash');
-                
                 // Shake the obstacle before game over
                 this.shakeObject(obs);
                 
@@ -686,9 +545,6 @@ class NumberGame extends Phaser.Scene {
                 
                 // Check if collecting a number larger than current score -> GAME OVER
                 if (value > 0 && value >= this.playerScore) {
-                    // Play crash sound
-                    this.playSound('crash');
-                    
                     // Shake the number before game over
                     this.shakeObject(num);
                     
@@ -699,12 +555,6 @@ class NumberGame extends Phaser.Scene {
                     return;
                 }
                 
-                // Play sound based on value
-                if (value < 0) {
-                    this.playSound('collect-bad'); // Negative number
-                } else {
-                    this.playSound('collect-good'); // Positive number
-                }
                 
                 // Reset countdown timer (collecting any number resets it to 15s)
                 this.countdown = 15;
@@ -845,6 +695,19 @@ class NumberGame extends Phaser.Scene {
         for (let i = this.roadNumbers.length - 1; i >= 0; i--) {
             const num = this.roadNumbers[i];
             num.y += (currentSpeed * delta) / 1000;
+            
+            // Move horizontally (random drift)
+            const horizontalSpeed = num.getData('horizontalSpeed') || 0;
+            num.x += (horizontalSpeed * delta) / 1000;
+            
+            // Bounce back if hitting road edges
+            if (num.x < this.roadLeft + 50) {
+                num.x = this.roadLeft + 50;
+                num.setData('horizontalSpeed', Math.abs(horizontalSpeed)); // Reverse to right
+            } else if (num.x > this.roadRight - 50) {
+                num.x = this.roadRight - 50;
+                num.setData('horizontalSpeed', -Math.abs(horizontalSpeed)); // Reverse to left
+            }
             
             // Fade out when passing the car
             if (num.y > this.playerY && !num.getData('fading')) {
@@ -1034,16 +897,13 @@ class NumberGame extends Phaser.Scene {
     }
     
     endGame() {
-        // Stop background music
-        this.stopBackgroundMusic();
-        
         // Play death animation first, then show game over
         this.playDeathAnimation();
     }
     
     shutdown() {
         // Called when scene is destroyed (e.g., going back to menu)
-        this.stopBackgroundMusic();
+        // Nothing to clean up now (no audio)
     }
 }
 
