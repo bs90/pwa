@@ -870,29 +870,234 @@ class NumberGame extends Phaser.Scene {
         
         // Game over overlay
         const overlay = this.add.graphics();
-        overlay.fillStyle(0x000000, 0.7);
+        overlay.fillStyle(0x000000, 0.85);
         overlay.fillRect(0, 0, width, height);
         
-        // Game over text
-        this.add.text(width / 2, height / 2 - 40, 'ゲームオーバー', {
-            fontSize: '64px',
+        // Game over text (smaller, at top)
+        const gameOverText = this.add.text(width / 2, height * 0.12, 'ゲームオーバー', {
+            fontSize: '48px',
             fontFamily: 'Arial',
             color: '#FF5252',
             fontStyle: 'bold',
             stroke: '#000000',
-            strokeThickness: 8
+            strokeThickness: 6
         }).setOrigin(0.5);
         
-        // Restart instruction
-        this.add.text(width / 2, height / 2 + 60, 'タップしてもういちど!', {
-            fontSize: '32px',
+        // Instruction text
+        const instructionText = this.add.text(width / 2, height * 0.20, 'もういちどあそぶには こたえてね!', {
+            fontSize: '24px',
             fontFamily: 'Arial',
             color: '#ffffff'
         }).setOrigin(0.5);
         
-        // Allow restart
-        this.input.once('pointerdown', () => {
-            this.scene.restart();
+        // Show math question (will be called recursively on wrong answer)
+        this.currentQuestionContainer = null; // Track current question container
+        this.showMathQuestion(overlay, gameOverText, instructionText);
+    }
+    
+    showMathQuestion(overlay, gameOverText, instructionText) {
+        const { width, height } = this.scale;
+        
+        // Destroy previous question container if exists
+        if (this.currentQuestionContainer) {
+            this.currentQuestionContainer.destroy(true); // true = destroy all children
+            this.currentQuestionContainer = null;
+        }
+        
+        // Generate math question (addition within 100)
+        const num1 = Phaser.Math.Between(1, 50);
+        const num2 = Phaser.Math.Between(1, 50);
+        const correctAnswer = num1 + num2;
+        
+        // Generate 5 wrong answers (close to correct answer but different)
+        const wrongAnswers = [];
+        const offsets = [-10, -7, -5, -3, -1, 1, 3, 5, 7, 10]; // Possible differences
+        
+        while (wrongAnswers.length < 5) {
+            const offset = Phaser.Utils.Array.GetRandom(offsets);
+            const wrongAnswer = correctAnswer + offset;
+            
+            // Make sure wrong answer is valid (>0, <=100) and unique
+            if (wrongAnswer > 0 && 
+                wrongAnswer <= 100 && 
+                wrongAnswer !== correctAnswer && 
+                !wrongAnswers.includes(wrongAnswer)) {
+                wrongAnswers.push(wrongAnswer);
+            }
+        }
+        
+        // Combine and shuffle answers
+        const allAnswers = [correctAnswer, ...wrongAnswers];
+        Phaser.Utils.Array.Shuffle(allAnswers);
+        
+        // Container for question elements (so we can clear them on wrong answer)
+        this.currentQuestionContainer = this.add.container(0, 0);
+        
+        // Display question in vertical format (上下)
+        // Align right so that digits line up properly (ones place, tens place)
+        const questionY = height * 0.35;
+        const rightX = width / 2 + 60; // Right alignment point
+        
+        // First number (right-aligned)
+        const num1Text = this.add.text(rightX, questionY, num1.toString(), {
+            fontSize: '72px',
+            fontFamily: 'Arial',
+            color: '#FFD700',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 6
+        }).setOrigin(1, 0.5); // Right-aligned
+        this.currentQuestionContainer.add(num1Text);
+        
+        // Plus sign (to the left of second number)
+        const plusText = this.add.text(rightX - 90, questionY + 80, '+', {
+            fontSize: '48px',
+            fontFamily: 'Arial',
+            color: '#ffffff',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+        this.currentQuestionContainer.add(plusText);
+        
+        // Second number (right-aligned, same x as first number)
+        const num2Text = this.add.text(rightX, questionY + 80, num2.toString(), {
+            fontSize: '72px',
+            fontFamily: 'Arial',
+            color: '#FFD700',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 6
+        }).setOrigin(1, 0.5); // Right-aligned
+        this.currentQuestionContainer.add(num2Text);
+        
+        // Horizontal line (extends from left of plus sign to right of numbers)
+        const line = this.add.graphics();
+        line.lineStyle(4, 0xffffff, 1);
+        line.beginPath();
+        line.moveTo(rightX - 120, questionY + 130);
+        line.lineTo(rightX + 10, questionY + 130);
+        line.strokePath();
+        this.currentQuestionContainer.add(line);
+        
+        // Answer buttons (6 choices in 3x2 grid)
+        const buttonStartY = height * 0.58;
+        const buttonWidth = 120;
+        const buttonHeight = 90;
+        const gapX = 30;
+        const gapY = 25;
+        
+        const positions = [
+            { x: width / 2 - buttonWidth * 1.5 - gapX, y: buttonStartY },
+            { x: width / 2 - buttonWidth / 2, y: buttonStartY },
+            { x: width / 2 + buttonWidth / 2 + gapX, y: buttonStartY },
+            { x: width / 2 - buttonWidth * 1.5 - gapX, y: buttonStartY + buttonHeight + gapY },
+            { x: width / 2 - buttonWidth / 2, y: buttonStartY + buttonHeight + gapY },
+            { x: width / 2 + buttonWidth / 2 + gapX, y: buttonStartY + buttonHeight + gapY }
+        ];
+        
+        // Create answer buttons
+        allAnswers.forEach((answer, index) => {
+            const pos = positions[index];
+            const isCorrect = answer === correctAnswer;
+            
+            // Button background
+            const button = this.add.graphics();
+            button.fillStyle(0x667eea, 1);
+            button.fillRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
+            button.lineStyle(4, 0xffffff, 0.5);
+            button.strokeRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
+            button.setInteractive(
+                new Phaser.Geom.Rectangle(pos.x, pos.y, buttonWidth, buttonHeight),
+                Phaser.Geom.Rectangle.Contains
+            );
+            this.currentQuestionContainer.add(button);
+            
+            // Button text
+            const buttonText = this.add.text(
+                pos.x + buttonWidth / 2, 
+                pos.y + buttonHeight / 2, 
+                answer.toString(), 
+                {
+                    fontSize: '48px',
+                    fontFamily: 'Arial',
+                    color: '#ffffff',
+                    fontStyle: 'bold'
+                }
+            ).setOrigin(0.5);
+            this.currentQuestionContainer.add(buttonText);
+            
+            // Button hover effect
+            button.on('pointerover', () => {
+                button.clear();
+                button.fillStyle(0x764ba2, 1);
+                button.fillRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
+                button.lineStyle(6, 0xFFD700, 1);
+                button.strokeRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
+            });
+            
+            button.on('pointerout', () => {
+                button.clear();
+                button.fillStyle(0x667eea, 1);
+                button.fillRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
+                button.lineStyle(4, 0xffffff, 0.5);
+                button.strokeRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
+            });
+            
+            // Button click
+            button.on('pointerdown', () => {
+                // Disable all buttons to prevent multiple clicks
+                this.currentQuestionContainer.iterate((child) => {
+                    if (child.input) {
+                        child.disableInteractive();
+                    }
+                });
+                
+                if (isCorrect) {
+                    // Correct answer - show feedback and restart
+                    button.clear();
+                    button.fillStyle(0x4CAF50, 1);
+                    button.fillRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
+                    button.lineStyle(6, 0xFFD700, 1);
+                    button.strokeRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
+                    
+                    // Success text
+                    const successText = this.add.text(width / 2, height * 0.50, '⭐ せいかい! ⭐', {
+                        fontSize: '48px',
+                        fontFamily: 'Arial',
+                        color: '#4CAF50',
+                        fontStyle: 'bold',
+                        stroke: '#000000',
+                        strokeThickness: 6
+                    }).setOrigin(0.5);
+                    
+                    // Restart after 1 second
+                    this.time.delayedCall(1000, () => {
+                        this.scene.restart();
+                    });
+                } else {
+                    // Wrong answer - shake, show it's wrong, then generate new question
+                    button.clear();
+                    button.fillStyle(0xFF5252, 1);
+                    button.fillRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
+                    button.lineStyle(6, 0xffffff, 1);
+                    button.strokeRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
+                    
+                    // Shake animation
+                    this.tweens.add({
+                        targets: [button, buttonText],
+                        x: '+=10',
+                        duration: 50,
+                        yoyo: true,
+                        repeat: 3,
+                        onComplete: () => {
+                            // Show new random question after short delay
+                            // (container will be auto-destroyed by showMathQuestion)
+                            this.time.delayedCall(300, () => {
+                                this.showMathQuestion(overlay, gameOverText, instructionText);
+                            });
+                        }
+                    });
+                }
+            });
         });
     }
     
