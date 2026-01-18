@@ -95,9 +95,8 @@ class NumberGame extends Phaser.Scene {
         this.maxRoadNumbers = 3;
         this.minNumberGap = 200; // Minimum distance between numbers
         
-        // Game time tracking
-        this.gameTime = 0; // Track elapsed time in seconds
-        this.lastScoreDeduct = 0; // Last time we deducted score
+        // Game time tracking for speed increase
+        this.gameTime = 0;
         
         // Spawn initial numbers
         this.spawnRoadNumber();
@@ -317,6 +316,12 @@ class NumberGame extends Phaser.Scene {
                     this.playerScore = Math.ceil(this.playerScore / 2);
                 }
                 
+                // Check game over
+                if (this.playerScore <= 0) {
+                    this.endGame();
+                    return;
+                }
+                
                 // Update display
                 this.scoreText.setText(this.playerScore.toString());
                 
@@ -337,19 +342,6 @@ class NumberGame extends Phaser.Scene {
         // Increase speed over time (starts at 200, increases 10 every 10 seconds)
         const speedIncrease = Math.floor(this.gameTime / 10) * 10;
         this.roadSpeed = 200 + speedIncrease;
-        
-        // Deduct 1 point every second
-        if (Math.floor(this.gameTime) > this.lastScoreDeduct) {
-            this.lastScoreDeduct = Math.floor(this.gameTime);
-            this.playerScore = Math.max(0, this.playerScore - 1);
-            this.scoreText.setText(this.playerScore.toString());
-            
-            // Game over if score reaches 0
-            if (this.playerScore <= 0) {
-                this.endGame();
-                return;
-            }
-        }
         
         // Animate road dashes moving down
         const { height } = this.scale;
