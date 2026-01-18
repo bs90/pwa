@@ -46,8 +46,8 @@ class NumberGame extends Phaser.Scene {
     create() {
         const { width, height } = this.scale;
         
-        // Simple background - light gray road
-        this.cameras.main.setBackgroundColor('#888888');
+        // Simple background - lighter gray to match road
+        this.cameras.main.setBackgroundColor('#999999');
         
         // Draw simple 2D top-down road
         this.drawTopDownRoad();
@@ -99,11 +99,11 @@ class NumberGame extends Phaser.Scene {
         const { width, height } = this.scale;
         const graphics = this.add.graphics();
         
-        // Draw simple vertical road (dark gray)
+        // Draw simple vertical road (lighter gray for contrast with black car)
         const roadWidth = width * 0.7;
         const roadX = (width - roadWidth) / 2;
         
-        graphics.fillStyle(0x444444, 1);
+        graphics.fillStyle(0x888888, 1); // Lighter gray (was 0x444444)
         graphics.fillRect(roadX, 0, roadWidth, height);
         
         // White lane dividers (3 lanes) - static
