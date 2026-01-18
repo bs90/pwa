@@ -46,8 +46,8 @@ class NumberGame extends Phaser.Scene {
     create() {
         const { width, height } = this.scale;
         
-        // Simple background - lighter gray to match road
-        this.cameras.main.setBackgroundColor('#999999');
+        // White background for contrast
+        this.cameras.main.setBackgroundColor('#ffffff');
         
         // Draw simple 2D top-down road
         this.drawTopDownRoad();
@@ -85,13 +85,26 @@ class NumberGame extends Phaser.Scene {
         });
         this.scoreText.setOrigin(0.5);
         
+        // Road boundaries
+        const roadWidth = width * 0.7;
+        this.roadLeft = (width - roadWidth) / 2;
+        this.roadRight = this.roadLeft + roadWidth;
+        
+        // Game numbers on road
+        this.roadNumbers = [];
+        this.maxRoadNumbers = 3;
+        this.minNumberGap = 200; // Minimum distance between numbers
+        
+        // Spawn initial numbers
+        this.spawnRoadNumber();
+        this.spawnRoadNumber();
+        
         // Touch controls
         this.isDragging = false;
         this.targetX = width / 2;
         
-        const roadWidth = width * 0.7;
-        this.minX = (width - roadWidth) / 2 + 50;
-        this.maxX = width - (width - roadWidth) / 2 - 50;
+        this.minX = this.roadLeft + 50;
+        this.maxX = this.roadRight - 50;
         
         this.input.on('pointerdown', (pointer) => {
             this.isDragging = true;
@@ -196,6 +209,98 @@ class NumberGame extends Phaser.Scene {
         }
     }
     
+    spawnRoadNumber() {
+        // Don't spawn if already at max
+        if (this.roadNumbers.length >= this.maxRoadNumbers) return;
+        
+        const { width, height } = this.scale;
+        
+        // Generate number value
+        let numberValue;
+        const hasSmaller = this.roadNumbers.some(n => n.getData('value') < this.playerScore);
+        
+        if (!hasSmaller || Math.random() < 0.4) {
+            // Ensure at least one smaller number, or 40% chance for smaller
+            numberValue = Phaser.Math.Between(1, Math.max(1, this.playerScore - 1));
+        } else {
+            // Larger or equal
+            numberValue = Phaser.Math.Between(this.playerScore, this.playerScore + 10);
+        }
+        
+        // Random X position on road, with padding
+        let randomX;
+        let attempts = 0;
+        let tooClose = true;
+        
+        while (tooClose && attempts < 10) {
+            randomX = Phaser.Math.Between(this.roadLeft + 80, this.roadRight - 80);
+            tooClose = false;
+            
+            // Check distance from existing numbers (only X distance matters for spawn)
+            for (let existingNum of this.roadNumbers) {
+                const distX = Math.abs(existingNum.x - randomX);
+                if (distX < 150) { // Minimum horizontal distance
+                    tooClose = true;
+                    break;
+                }
+            }
+            attempts++;
+        }
+        
+        // Spawn far above screen (relative to "road" which is static)
+        const startY = -200 - Math.random() * 300; // Random offset so they don't align
+        
+        // Get car width for size reference
+        const carWidth = this.playerCar.displayWidth;
+        
+        // Create number text - same width as car
+        const numberText = this.add.text(randomX, startY, numberValue.toString(), {
+            fontSize: '72px',
+            fontFamily: 'Arial',
+            color: '#ffffff',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 10
+        });
+        numberText.setOrigin(0.5);
+        numberText.setData('value', numberValue);
+        
+        this.roadNumbers.push(numberText);
+    }
+    
+    checkNumberCollision() {
+        for (let i = this.roadNumbers.length - 1; i >= 0; i--) {
+            const num = this.roadNumbers[i];
+            
+            // Check if number reached the car
+            const distance = Phaser.Math.Distance.Between(
+                num.x, num.y,
+                this.playerCar.x, this.playerCar.y
+            );
+            
+            if (distance < 100) {
+                const value = num.getData('value');
+                
+                // Update player score
+                if (value < this.playerScore) {
+                    this.playerScore += value;
+                } else {
+                    this.playerScore = Math.ceil(this.playerScore / 2);
+                }
+                
+                // Update display
+                this.scoreText.setText(this.playerScore.toString());
+                
+                // Remove number
+                num.destroy();
+                this.roadNumbers.splice(i, 1);
+                
+                // Spawn new number
+                this.spawnRoadNumber();
+            }
+        }
+    }
+    
     update(time, delta) {
         // Animate road dashes moving down
         const { height } = this.scale;
@@ -226,6 +331,22 @@ class NumberGame extends Phaser.Scene {
                 obj.setText(Phaser.Utils.Array.GetRandom(emojis));
             }
         }
+        
+        // Move road numbers down (they're "stationary" on road, but road moves toward car)
+        for (let i = this.roadNumbers.length - 1; i >= 0; i--) {
+            const num = this.roadNumbers[i];
+            num.y += (this.roadSpeed * delta) / 1000;
+            
+            // Remove if off screen and spawn new one
+            if (num.y > height + 100) {
+                num.destroy();
+                this.roadNumbers.splice(i, 1);
+                this.spawnRoadNumber();
+            }
+        }
+        
+        // Check collisions
+        this.checkNumberCollision();
         
         // Smooth car movement
         if (this.isDragging || Math.abs(this.playerX - this.targetX) > 1) {
