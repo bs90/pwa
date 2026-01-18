@@ -251,10 +251,9 @@ class NumberGame extends Phaser.Scene {
             // Check distance from existing numbers (both X and Y for even distribution)
             for (let existingNum of this.roadNumbers) {
                 const distX = Math.abs(existingNum.x - randomX);
-                const distY = Math.abs(existingNum.y - (-300)); // Default spawn Y
                 
-                // Numbers should be far apart in both dimensions
-                if (distX < 150 || distY < 200) {
+                // Numbers should be far apart horizontally
+                if (distX < 120) {
                     tooClose = true;
                     break;
                 }
@@ -262,19 +261,20 @@ class NumberGame extends Phaser.Scene {
             attempts++;
         }
         
-        // Spawn evenly distributed - calculate Y based on number count
-        // Instead of random, space them out evenly above screen
-        let startY;
-        if (this.roadNumbers.length === 0) {
-            startY = -300;
-        } else if (this.roadNumbers.length === 1) {
-            startY = -600;
-        } else {
-            startY = -900;
-        }
+        // Always spawn far above screen - find the highest existing number
+        let startY = -300; // Default
         
-        // Add small random offset to avoid perfect alignment
-        startY += Phaser.Math.Between(-50, 50);
+        if (this.roadNumbers.length > 0) {
+            // Find the topmost (most negative Y) number
+            let topmostY = 0;
+            for (let num of this.roadNumbers) {
+                if (num.y < topmostY) {
+                    topmostY = num.y;
+                }
+            }
+            // Spawn above the topmost number with good spacing
+            startY = topmostY - 300 - Phaser.Math.Between(0, 100);
+        }
         
         // Create number text - same width as car
         const numberText = this.add.text(randomX, startY, numberValue.toString(), {
@@ -360,12 +360,16 @@ class NumberGame extends Phaser.Scene {
             const num = this.roadNumbers[i];
             num.y += (this.roadSpeed * delta) / 1000;
             
-            // Remove if off screen and spawn new one
-            if (num.y > height + 100) {
+            // Remove if passed the car (gone past without collision) or off screen
+            if (num.y > this.playerY + 100) {
                 num.destroy();
                 this.roadNumbers.splice(i, 1);
-                this.spawnRoadNumber();
             }
+        }
+        
+        // Always maintain 3 numbers on screen - spawn continuously
+        while (this.roadNumbers.length < this.maxRoadNumbers) {
+            this.spawnRoadNumber();
         }
         
         // Check collisions
