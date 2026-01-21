@@ -76,7 +76,23 @@ class NumberGame extends Phaser.Scene {
         
         // Countdown timer (15 seconds to collect a number or game over)
         this.countdown = 15;
-        
+
+        // Survival timer (2 minutes - survive to win!)
+        this.survivalTimer = 120; // 2 minutes = 120 seconds
+        this.survivalTimerMax = 120; // Customizable later
+
+        // Display survival timer at top center
+        this.survivalTimerText = this.add.text(width / 2, 50, this.formatTime(this.survivalTimer), {
+            fontSize: '64px',
+            fontFamily: 'Arial',
+            color: '#FFD700',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 8
+        });
+        this.survivalTimerText.setOrigin(0.5);
+        this.survivalTimerText.setScrollFactor(0); // Fixed position (doesn't scroll)
+
         // Display score way below car to avoid overlap
         this.scoreText = this.add.text(this.playerX, this.playerY + 150, this.playerScore.toString(), {
             fontSize: '72px',
@@ -102,12 +118,12 @@ class NumberGame extends Phaser.Scene {
         
         // Game numbers on road
         this.roadNumbers = [];
-        this.maxRoadNumbers = 3;
-        this.minNumberGap = 200; // Minimum distance between numbers
+        this.maxRoadPairs = 2; // Number of pairs on screen (was maxRoadNumbers = 3)
+        this.minPairGap = 300; // Minimum vertical distance between pairs
         
         // Obstacles on road
         this.obstacles = [];
-        this.maxObstacles = 2; // Max 2 obstacles at once
+        this.maxObstacles = 1; // Max 1 obstacle at once (reduced from 2)
         
         // Power-up items
         this.powerUps = [];
@@ -119,16 +135,26 @@ class NumberGame extends Phaser.Scene {
         
         // Game time tracking
         this.gameTime = 0;
-        
+
+        // Collection cooldown system
+        this.collectionCooldown = 0; // Time remaining until can collect again
+        this.cooldownDuration = 2; // 2 seconds cooldown
+        this.canCollect = true; // Whether car can collect numbers
+
         // Game state
         this.isGameOver = false;
-        
-        // Spawn initial numbers
-        this.spawnRoadNumber();
-        this.spawnRoadNumber();
-        
+        this.gameStarted = false; // Game hasn't started yet (waiting for quiz)
+
+        // Don't spawn anything yet - wait for quiz to be answered
+        // Spawn initial pairs
+        // this.spawnNumberPair();
+        // this.spawnNumberPair();
+
         // Spawn initial obstacle
-        this.spawnObstacle();
+        // this.spawnObstacle();
+
+        // Show start quiz first
+        this.showStartQuiz();
         
         // Touch controls
         this.isDragging = false;
@@ -153,6 +179,13 @@ class NumberGame extends Phaser.Scene {
         });
     }
     
+    formatTime(seconds) {
+        // Format time as MM:SS
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
     drawTopDownRoad() {
         const { width, height } = this.scale;
         const graphics = this.add.graphics();
@@ -246,113 +279,128 @@ class NumberGame extends Phaser.Scene {
     }
     
     getMaxObstacles() {
-        // Start with 2 obstacles, add 1 every 60 seconds (max 5)
-        return Math.min(5, 2 + Math.floor(this.gameTime / 60));
+        // Start with 1 obstacle, add 1 every 60 seconds (max 3)
+        return Math.min(3, 1 + Math.floor(this.gameTime / 60));
     }
     
-    
-    spawnRoadNumber() {
-        // Don't spawn if already at max
-        if (this.roadNumbers.length >= this.maxRoadNumbers) return;
-        
+
+    countNumberPairs() {
+        // Count how many pairs we currently have
+        // Numbers are tagged with pairId, count unique pairIds
+        const pairIds = new Set();
+        for (let num of this.roadNumbers) {
+            const pairId = num.getData('pairId');
+            if (pairId !== undefined) {
+                pairIds.add(pairId);
+            }
+        }
+        return pairIds.size;
+    }
+
+    spawnNumberPair() {
+        // Don't spawn if already at max pairs
+        if (this.countNumberPairs() >= this.maxRoadPairs) return;
+
         const { width, height } = this.scale;
-        
-        // Generate number value: positive (1-10) or negative (-10 to -1)
-        // Difficulty increases over time (more dangerous spawns)
-        let numberValue;
+
+        // Generate unique pair ID
+        const pairId = Date.now() + Math.random();
+
+        // Difficulty scaling
+        const difficultyLevel = Math.floor(this.gameTime / 30);
+        const safeChance = Math.max(0.1, 0.3 - (difficultyLevel * 0.05));
+        const negativeChance = Math.min(0.4, 0.2 + (difficultyLevel * 0.05));
+
+        // Generate two different number values for the pair
+        const values = [];
+
+        // First number - ensure at least one safe option exists
         const hasSmaller = this.roadNumbers.some(n => n.getData('value') > 0 && n.getData('value') < this.playerScore);
-        
-        // Difficulty scaling: every 30 seconds, reduce safe spawn chance by 5%
-        const difficultyLevel = Math.floor(this.gameTime / 30); // 0, 1, 2, 3...
-        const safeChance = Math.max(0.1, 0.3 - (difficultyLevel * 0.05)); // 30% → 25% → 20% → ... → 10% (min)
-        const negativeChance = Math.min(0.4, 0.2 + (difficultyLevel * 0.05)); // 20% → 25% → 30% → ... → 40% (max)
-        // Remaining goes to dangerous numbers
-        
+
         if (!hasSmaller) {
-            // Always ensure at least one safe positive number exists (1-10)
-            numberValue = Phaser.Math.Between(1, Math.min(10, Math.max(1, this.playerScore - 1)));
+            // First number is safe
+            values.push(Phaser.Math.Between(1, Math.min(10, Math.max(1, this.playerScore - 1))));
         } else {
-            const rand = Math.random();
-            
-            if (rand < safeChance) {
-                // Safe positive numbers (1-10, less than current score)
-                const maxSafe = Math.min(10, Math.max(1, this.playerScore - 1));
-                numberValue = Phaser.Math.Between(1, maxSafe);
-            } else if (rand < safeChance + negativeChance) {
-                // Negative numbers (-10 to -1) to subtract points
-                numberValue = Phaser.Math.Between(-10, -1);
-            } else {
-                // Dangerous numbers (MUCH larger than current score)
-                // Make them at least +20 above current score to avoid accidental collection
-                const minDanger = this.playerScore + 20;
-                const maxDanger = this.playerScore + 50;
-                numberValue = Phaser.Math.Between(minDanger, maxDanger);
-            }
+            values.push(this.generateNumberValue(safeChance, negativeChance));
         }
-        
-        // Find safe position that doesn't overlap with ANY objects
-        let randomX;
-        let startY;
+
+        // Second number - different from first
+        let secondValue;
         let attempts = 0;
-        let tooClose = true;
-        
-        while (tooClose && attempts < 20) {
-            randomX = Phaser.Math.Between(this.roadLeft + 80, this.roadRight - 80);
-            
-            // Always spawn far above screen - find the highest existing object
-            startY = -300; // Default
-            
-            // Check all objects (numbers, obstacles, power-ups)
-            const allObjects = [...this.roadNumbers, ...this.obstacles, ...this.powerUps];
-            
-            if (allObjects.length > 0) {
-                // Find the topmost object
-                let topmostY = 0;
-                for (let obj of allObjects) {
-                    if (obj.y < topmostY) {
-                        topmostY = obj.y;
-                    }
-                }
-                // Spawn above the topmost with spacing
-                startY = topmostY - 250 - Phaser.Math.Between(0, 100);
-            }
-            
-            tooClose = false;
-            
-            // Check distance from ALL existing objects (X and Y)
-            for (let obj of allObjects) {
-                const distX = Math.abs(obj.x - randomX);
-                const distY = Math.abs(obj.y - startY);
-                
-                // Objects should be far apart (check both X and Y)
-                if (distX < 150 && distY < 250) {
-                    tooClose = true;
-                    break;
-                }
-            }
+        do {
+            secondValue = this.generateNumberValue(safeChance, negativeChance);
             attempts++;
+        } while (secondValue === values[0] && attempts < 10);
+        values.push(secondValue);
+
+        // Find Y position that doesn't overlap with existing pairs
+        let startY = -300;
+        const allObjects = [...this.roadNumbers, ...this.obstacles, ...this.powerUps];
+
+        if (allObjects.length > 0) {
+            let topmostY = 0;
+            for (let obj of allObjects) {
+                if (obj.y < topmostY) {
+                    topmostY = obj.y;
+                }
+            }
+            startY = topmostY - this.minPairGap;
         }
-        
-        // Create number text - all numbers same white color
-        const numberText = this.add.text(randomX, startY, numberValue.toString(), {
-            fontSize: '72px',
-            fontFamily: 'Arial',
-            color: '#ffffff', // All numbers white
-            fontStyle: 'bold',
-            stroke: '#000000',
-            strokeThickness: 10
-        });
-        numberText.setOrigin(0.5);
-        numberText.setData('value', numberValue);
-        
-        // Add random horizontal movement (slow drift)
-        // Random direction: -1 (left) or 1 (right)
+
+        // Calculate horizontal positions with good spacing
+        const roadWidth = this.roadRight - this.roadLeft;
+        const horizontalSpacing = roadWidth * 0.4; // 40% of road width between numbers
+        const centerX = (this.roadLeft + this.roadRight) / 2;
+
+        const positions = [
+            centerX - horizontalSpacing / 2, // Left position
+            centerX + horizontalSpacing / 2  // Right position
+        ];
+
+        // Randomly decide which number goes left/right
+        if (Math.random() < 0.5) {
+            values.reverse();
+        }
+
+        // Add slow horizontal movement for the entire pair (same direction)
         const horizontalDirection = Math.random() < 0.5 ? -1 : 1;
-        // Random slow speed: 20-50 pixels per second
-        const horizontalSpeed = Phaser.Math.Between(20, 50) * horizontalDirection;
-        numberText.setData('horizontalSpeed', horizontalSpeed);
-        
-        this.roadNumbers.push(numberText);
+        const horizontalSpeed = Phaser.Math.Between(20, 50) * horizontalDirection; // Slow drift
+
+        // Create both numbers in the pair
+        for (let i = 0; i < 2; i++) {
+            const numberText = this.add.text(positions[i], startY, values[i].toString(), {
+                fontSize: '72px',
+                fontFamily: 'Arial',
+                color: '#ffffff',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 10
+            });
+            numberText.setOrigin(0.5);
+            numberText.setData('value', values[i]);
+            numberText.setData('pairId', pairId);
+            numberText.setData('horizontalSpeed', horizontalSpeed); // Both numbers move together
+
+            this.roadNumbers.push(numberText);
+        }
+    }
+
+    generateNumberValue(safeChance, negativeChance) {
+        const rand = Math.random();
+
+        if (rand < safeChance) {
+            // Safe positive numbers (1-10, less than current score)
+            const maxSafe = Math.min(10, Math.max(1, this.playerScore - 1));
+            return Phaser.Math.Between(1, maxSafe);
+        } else if (rand < safeChance + negativeChance) {
+            // Negative numbers (-10 to -1)
+            return Phaser.Math.Between(-10, -1);
+        } else {
+            // Dangerous numbers (larger than current score)
+            const minDanger = this.playerScore + 20;
+            const maxDanger = this.playerScore + 50;
+            return Phaser.Math.Between(minDanger, maxDanger);
+        }
     }
     
     spawnObstacle() {
@@ -413,7 +461,12 @@ class NumberGame extends Phaser.Scene {
             fontSize: '128px' // Double size! (was 64px)
         });
         obstacle.setOrigin(0.5);
-        
+
+        // Add slow horizontal movement for rocks
+        const horizontalDirection = Math.random() < 0.5 ? -1 : 1;
+        const horizontalSpeed = Phaser.Math.Between(15, 30) * horizontalDirection; // Slower than numbers
+        obstacle.setData('horizontalSpeed', horizontalSpeed);
+
         this.obstacles.push(obstacle);
     }
     
@@ -432,19 +485,13 @@ class NumberGame extends Phaser.Scene {
         const randomX = Phaser.Math.Between(this.roadLeft + 80, this.roadRight - 80);
         const startY = -500 - Math.random() * 200;
         
-        // Create power-up
+        // Create power-up (just lightning, no glow)
         const powerUp = this.add.text(randomX, startY, icon, {
             fontSize: '72px' // Bigger for visibility
         });
         powerUp.setOrigin(0.5);
         powerUp.setData('type', type);
-        
-        // Add glow effect by adding a circle behind
-        const glow = this.add.graphics();
-        glow.fillStyle(0xFFD700, 0.4); // Golden glow for power
-        glow.fillCircle(0, 0, 45);
-        powerUp.setData('glow', glow);
-        
+
         this.powerUps.push(powerUp);
     }
     
@@ -482,10 +529,8 @@ class NumberGame extends Phaser.Scene {
                 // Store effect animation data
                 this.powerUpEffect.setData('pulseScale', 1);
                 this.powerUpEffect.setData('pulseDirection', 1);
-                
+
                 // Clean up power-up
-                const glow = powerUp.getData('glow');
-                if (glow) glow.destroy();
                 powerUp.destroy();
                 this.powerUps.splice(i, 1);
             }
@@ -531,15 +576,18 @@ class NumberGame extends Phaser.Scene {
     }
     
     checkNumberCollision() {
+        // Skip collision check if in cooldown
+        if (!this.canCollect) return;
+
         for (let i = this.roadNumbers.length - 1; i >= 0; i--) {
             const num = this.roadNumbers[i];
-            
+
             // Check if number reached the car
             const distance = Phaser.Math.Distance.Between(
                 num.x, num.y,
                 this.playerCar.x, this.playerCar.y
             );
-            
+
             if (distance < 100) {
                 const value = num.getData('value');
                 
@@ -588,13 +636,16 @@ class NumberGame extends Phaser.Scene {
                 
                 // Update display
                 this.scoreText.setText(this.playerScore.toString());
-                
+
+                // Activate cooldown
+                this.collectionCooldown = this.cooldownDuration;
+                this.canCollect = false;
+
                 // Remove number
                 num.destroy();
                 this.roadNumbers.splice(i, 1);
-                
-                // Spawn new number
-                this.spawnRoadNumber();
+
+                // Don't spawn immediately - let the regular maintenance handle it
             }
         }
     }
@@ -643,12 +694,46 @@ class NumberGame extends Phaser.Scene {
     }
     
     update(time, delta) {
-        // Stop all updates if game is over
-        if (this.isGameOver) return;
-        
+        // Stop all updates if game is over or hasn't started yet
+        if (this.isGameOver || !this.gameStarted) return;
+
         // Update game time
         this.gameTime += delta / 1000; // Convert to seconds
-        
+
+        // Update collection cooldown
+        if (this.collectionCooldown > 0) {
+            this.collectionCooldown -= delta / 1000;
+
+            // Visual feedback: make car slightly transparent during cooldown
+            const cooldownAlpha = 0.5 + (0.5 * (1 - this.collectionCooldown / this.cooldownDuration));
+            this.playerCar.setAlpha(cooldownAlpha);
+
+            if (this.collectionCooldown <= 0) {
+                this.collectionCooldown = 0;
+                this.canCollect = true;
+                this.playerCar.setAlpha(1); // Restore full opacity
+            }
+        }
+
+        // Update survival timer
+        this.survivalTimer -= delta / 1000;
+        this.survivalTimerText.setText(this.formatTime(Math.max(0, this.survivalTimer)));
+
+        // Change color based on remaining time
+        if (this.survivalTimer <= 10) {
+            this.survivalTimerText.setColor('#FF0000'); // Red when < 10s
+        } else if (this.survivalTimer <= 20) {
+            this.survivalTimerText.setColor('#FFA500'); // Orange when < 20s
+        } else {
+            this.survivalTimerText.setColor('#FFD700'); // Gold when normal
+        }
+
+        // Check if survival timer reached 0 - PLAYER WINS!
+        if (this.survivalTimer <= 0) {
+            this.showWinScreen();
+            return;
+        }
+
         // Update countdown timer
         this.countdown -= delta / 1000;
         if (this.countdown <= 0) {
@@ -656,7 +741,7 @@ class NumberGame extends Phaser.Scene {
             this.endGame();
             return;
         }
-        
+
         // Update countdown circle display
         this.drawCountdownCircle();
         
@@ -695,11 +780,11 @@ class NumberGame extends Phaser.Scene {
         for (let i = this.roadNumbers.length - 1; i >= 0; i--) {
             const num = this.roadNumbers[i];
             num.y += (currentSpeed * delta) / 1000;
-            
-            // Move horizontally (random drift)
+
+            // Move horizontally (slow drift)
             const horizontalSpeed = num.getData('horizontalSpeed') || 0;
             num.x += (horizontalSpeed * delta) / 1000;
-            
+
             // Bounce back if hitting road edges
             if (num.x < this.roadLeft + 50) {
                 num.x = this.roadLeft + 50;
@@ -708,7 +793,7 @@ class NumberGame extends Phaser.Scene {
                 num.x = this.roadRight - 50;
                 num.setData('horizontalSpeed', -Math.abs(horizontalSpeed)); // Reverse to left
             }
-            
+
             // Fade out when passing the car
             if (num.y > this.playerY && !num.getData('fading')) {
                 num.setData('fading', true);
@@ -728,7 +813,20 @@ class NumberGame extends Phaser.Scene {
         for (let i = this.obstacles.length - 1; i >= 0; i--) {
             const obs = this.obstacles[i];
             obs.y += (currentSpeed * delta) / 1000;
-            
+
+            // Move horizontally (slow drift like rocks rolling)
+            const horizontalSpeed = obs.getData('horizontalSpeed') || 0;
+            obs.x += (horizontalSpeed * delta) / 1000;
+
+            // Bounce back if hitting road edges
+            if (obs.x < this.roadLeft + 80) {
+                obs.x = this.roadLeft + 80;
+                obs.setData('horizontalSpeed', Math.abs(horizontalSpeed)); // Reverse to right
+            } else if (obs.x > this.roadRight - 80) {
+                obs.x = this.roadRight - 80;
+                obs.setData('horizontalSpeed', -Math.abs(horizontalSpeed)); // Reverse to left
+            }
+
             // Fade out when passing the car
             if (obs.y > this.playerY && !obs.getData('fading')) {
                 obs.setData('fading', true);
@@ -748,23 +846,15 @@ class NumberGame extends Phaser.Scene {
         for (let i = this.powerUps.length - 1; i >= 0; i--) {
             const powerUp = this.powerUps[i];
             powerUp.y += (currentSpeed * delta) / 1000;
-            
-            // Update glow position
-            const glow = powerUp.getData('glow');
-            if (glow) {
-                glow.x = powerUp.x;
-                glow.y = powerUp.y;
-            }
-            
+
             // Fade out when passing the car
             if (powerUp.y > this.playerY && !powerUp.getData('fading')) {
                 powerUp.setData('fading', true);
                 this.tweens.add({
-                    targets: [powerUp, glow],
+                    targets: powerUp,
                     alpha: 0,
                     duration: 300,
                     onComplete: () => {
-                        if (glow) glow.destroy();
                         powerUp.destroy();
                     }
                 });
@@ -813,11 +903,11 @@ class NumberGame extends Phaser.Scene {
             this.spawnPowerUp();
         }
         
-        // Always maintain numbers and obstacles on screen (difficulty scales)
-        while (this.roadNumbers.length < this.maxRoadNumbers) {
-            this.spawnRoadNumber();
+        // Always maintain number pairs and obstacles on screen (difficulty scales)
+        while (this.countNumberPairs() < this.maxRoadPairs) {
+            this.spawnNumberPair();
         }
-        
+
         while (this.obstacles.length < this.getMaxObstacles()) {
             this.spawnObstacle();
         }
@@ -865,9 +955,363 @@ class NumberGame extends Phaser.Scene {
         });
     }
     
+    showWinScreen() {
+        // Set game over flag to stop movements
+        this.isGameOver = true;
+
+        // Hide score, countdown circle, and survival timer during win screen
+        this.scoreText.setVisible(false);
+        this.countdownCircle.setVisible(false);
+        this.survivalTimerText.setVisible(false);
+
+        const { width, height } = this.scale;
+
+        // Win overlay
+        const overlay = this.add.graphics();
+        overlay.fillStyle(0x000000, 0.85);
+        overlay.fillRect(0, 0, width, height);
+
+        // WIN text with celebration
+        const winText = this.add.text(width / 2, height * 0.25, '🎉 かった! 🎉', {
+            fontSize: '72px',
+            fontFamily: 'Arial',
+            color: '#FFD700',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 8
+        }).setOrigin(0.5);
+
+        // Pulsing animation for win text
+        this.tweens.add({
+            targets: winText,
+            scale: 1.1,
+            duration: 500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+
+        // Score label
+        const scoreLabel = this.add.text(width / 2, height * 0.45, 'あなたのスコア:', {
+            fontSize: '32px',
+            fontFamily: 'Arial',
+            color: '#ffffff'
+        }).setOrigin(0.5);
+
+        // Final score (big and prominent)
+        const finalScoreText = this.add.text(width / 2, height * 0.55, this.playerScore.toString(), {
+            fontSize: '120px',
+            fontFamily: 'Arial',
+            color: '#FFD700',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 10
+        }).setOrigin(0.5);
+
+        // Restart instruction
+        const restartText = this.add.text(width / 2, height * 0.75, 'もういちど あそぶ？', {
+            fontSize: '28px',
+            fontFamily: 'Arial',
+            color: '#ffffff'
+        }).setOrigin(0.5);
+
+        // Restart button
+        const buttonWidth = 200;
+        const buttonHeight = 80;
+        const buttonX = width / 2 - buttonWidth / 2;
+        const buttonY = height * 0.82;
+
+        const button = this.add.graphics();
+        button.fillStyle(0x4CAF50, 1);
+        button.fillRoundedRect(buttonX, buttonY, buttonWidth, buttonHeight, 20);
+        button.lineStyle(4, 0xFFD700, 1);
+        button.strokeRoundedRect(buttonX, buttonY, buttonWidth, buttonHeight, 20);
+        button.setInteractive(
+            new Phaser.Geom.Rectangle(buttonX, buttonY, buttonWidth, buttonHeight),
+            Phaser.Geom.Rectangle.Contains
+        );
+
+        const buttonText = this.add.text(width / 2, buttonY + buttonHeight / 2, 'もういちど', {
+            fontSize: '36px',
+            fontFamily: 'Arial',
+            color: '#ffffff',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        // Button hover effect
+        button.on('pointerover', () => {
+            button.clear();
+            button.fillStyle(0x66BB6A, 1);
+            button.fillRoundedRect(buttonX, buttonY, buttonWidth, buttonHeight, 20);
+            button.lineStyle(6, 0xFFD700, 1);
+            button.strokeRoundedRect(buttonX, buttonY, buttonWidth, buttonHeight, 20);
+        });
+
+        button.on('pointerout', () => {
+            button.clear();
+            button.fillStyle(0x4CAF50, 1);
+            button.fillRoundedRect(buttonX, buttonY, buttonWidth, buttonHeight, 20);
+            button.lineStyle(4, 0xFFD700, 1);
+            button.strokeRoundedRect(buttonX, buttonY, buttonWidth, buttonHeight, 20);
+        });
+
+        // Button click - restart game
+        button.on('pointerdown', () => {
+            this.scene.restart();
+        });
+    }
+
+    showStartQuiz() {
+        const { width, height } = this.scale;
+
+        // Start quiz overlay
+        const overlay = this.add.graphics();
+        overlay.fillStyle(0x000000, 0.85);
+        overlay.fillRect(0, 0, width, height);
+
+        // Welcome text
+        const welcomeText = this.add.text(width / 2, height * 0.12, 'すうじゲーム', {
+            fontSize: '56px',
+            fontFamily: 'Arial',
+            color: '#FFD700',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 6
+        }).setOrigin(0.5);
+
+        // Instruction text
+        const instructionText = this.add.text(width / 2, height * 0.20, 'はじめるには こたえてね!', {
+            fontSize: '24px',
+            fontFamily: 'Arial',
+            color: '#ffffff'
+        }).setOrigin(0.5);
+
+        // Show math question
+        this.currentQuestionContainer = null;
+        this.showStartMathQuestion(overlay, welcomeText, instructionText);
+    }
+
+    showStartMathQuestion(overlay, welcomeText, instructionText) {
+        const { width, height } = this.scale;
+
+        // Destroy previous question container if exists
+        if (this.currentQuestionContainer) {
+            this.currentQuestionContainer.destroy(true);
+            this.currentQuestionContainer = null;
+        }
+
+        // Generate math question (addition within 100)
+        const num1 = Phaser.Math.Between(1, 50);
+        const num2 = Phaser.Math.Between(1, 50);
+        const correctAnswer = num1 + num2;
+
+        // Generate 5 wrong answers
+        const wrongAnswers = [];
+        const offsets = [-10, -7, -5, -3, -1, 1, 3, 5, 7, 10];
+
+        while (wrongAnswers.length < 5) {
+            const offset = Phaser.Utils.Array.GetRandom(offsets);
+            const wrongAnswer = correctAnswer + offset;
+
+            if (wrongAnswer > 0 &&
+                wrongAnswer <= 100 &&
+                wrongAnswer !== correctAnswer &&
+                !wrongAnswers.includes(wrongAnswer)) {
+                wrongAnswers.push(wrongAnswer);
+            }
+        }
+
+        // Combine and shuffle answers
+        const allAnswers = [correctAnswer, ...wrongAnswers];
+        Phaser.Utils.Array.Shuffle(allAnswers);
+
+        // Container for question elements
+        this.currentQuestionContainer = this.add.container(0, 0);
+
+        // Display question in vertical format
+        const questionY = height * 0.35;
+        const rightX = width / 2 + 60;
+
+        // First number (right-aligned)
+        const num1Text = this.add.text(rightX, questionY, num1.toString(), {
+            fontSize: '72px',
+            fontFamily: 'Arial',
+            color: '#FFD700',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 6
+        }).setOrigin(1, 0.5);
+        this.currentQuestionContainer.add(num1Text);
+
+        // Plus sign (centered between two numbers)
+        const plusText = this.add.text(rightX - 100, questionY + 40, '+', {
+            fontSize: '48px',
+            fontFamily: 'Arial',
+            color: '#ffffff',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+        this.currentQuestionContainer.add(plusText);
+
+        // Second number (right-aligned)
+        const num2Text = this.add.text(rightX, questionY + 80, num2.toString(), {
+            fontSize: '72px',
+            fontFamily: 'Arial',
+            color: '#FFD700',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 6
+        }).setOrigin(1, 0.5);
+        this.currentQuestionContainer.add(num2Text);
+
+        // Horizontal line
+        const line = this.add.graphics();
+        line.lineStyle(4, 0xffffff, 1);
+        line.beginPath();
+        line.moveTo(rightX - 120, questionY + 130);
+        line.lineTo(rightX + 10, questionY + 130);
+        line.strokePath();
+        this.currentQuestionContainer.add(line);
+
+        // Answer buttons (6 choices in 3x2 grid)
+        const buttonStartY = height * 0.58;
+        const buttonWidth = 120;
+        const buttonHeight = 90;
+        const gapX = 30;
+        const gapY = 25;
+
+        const positions = [
+            { x: width / 2 - buttonWidth * 1.5 - gapX, y: buttonStartY },
+            { x: width / 2 - buttonWidth / 2, y: buttonStartY },
+            { x: width / 2 + buttonWidth / 2 + gapX, y: buttonStartY },
+            { x: width / 2 - buttonWidth * 1.5 - gapX, y: buttonStartY + buttonHeight + gapY },
+            { x: width / 2 - buttonWidth / 2, y: buttonStartY + buttonHeight + gapY },
+            { x: width / 2 + buttonWidth / 2 + gapX, y: buttonStartY + buttonHeight + gapY }
+        ];
+
+        // Create answer buttons
+        allAnswers.forEach((answer, index) => {
+            const pos = positions[index];
+            const isCorrect = answer === correctAnswer;
+
+            // Button background
+            const button = this.add.graphics();
+            button.fillStyle(0x667eea, 1);
+            button.fillRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
+            button.lineStyle(4, 0xffffff, 0.5);
+            button.strokeRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
+            button.setInteractive(
+                new Phaser.Geom.Rectangle(pos.x, pos.y, buttonWidth, buttonHeight),
+                Phaser.Geom.Rectangle.Contains
+            );
+            this.currentQuestionContainer.add(button);
+
+            // Button text
+            const buttonText = this.add.text(
+                pos.x + buttonWidth / 2,
+                pos.y + buttonHeight / 2,
+                answer.toString(),
+                {
+                    fontSize: '48px',
+                    fontFamily: 'Arial',
+                    color: '#ffffff',
+                    fontStyle: 'bold'
+                }
+            ).setOrigin(0.5);
+            this.currentQuestionContainer.add(buttonText);
+
+            // Button hover effect
+            button.on('pointerover', () => {
+                button.clear();
+                button.fillStyle(0x764ba2, 1);
+                button.fillRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
+                button.lineStyle(6, 0xFFD700, 1);
+                button.strokeRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
+            });
+
+            button.on('pointerout', () => {
+                button.clear();
+                button.fillStyle(0x667eea, 1);
+                button.fillRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
+                button.lineStyle(4, 0xffffff, 0.5);
+                button.strokeRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
+            });
+
+            // Button click
+            button.on('pointerdown', () => {
+                // Disable all buttons
+                this.currentQuestionContainer.iterate((child) => {
+                    if (child.input) {
+                        child.disableInteractive();
+                    }
+                });
+
+                if (isCorrect) {
+                    // Correct answer - start the game!
+                    button.clear();
+                    button.fillStyle(0x4CAF50, 1);
+                    button.fillRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
+                    button.lineStyle(6, 0xFFD700, 1);
+                    button.strokeRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
+
+                    // Success text
+                    const successText = this.add.text(width / 2, height * 0.50, '⭐ せいかい! ⭐', {
+                        fontSize: '48px',
+                        fontFamily: 'Arial',
+                        color: '#4CAF50',
+                        fontStyle: 'bold',
+                        stroke: '#000000',
+                        strokeThickness: 6
+                    }).setOrigin(0.5);
+
+                    // Start game after 1 second
+                    this.time.delayedCall(1000, () => {
+                        // Remove overlay and quiz elements
+                        overlay.destroy();
+                        welcomeText.destroy();
+                        instructionText.destroy();
+                        successText.destroy();
+                        if (this.currentQuestionContainer) {
+                            this.currentQuestionContainer.destroy(true);
+                        }
+
+                        // Start the game
+                        this.gameStarted = true;
+
+                        // Spawn initial pairs and obstacles
+                        this.spawnNumberPair();
+                        this.spawnNumberPair();
+                        this.spawnObstacle();
+                    });
+                } else {
+                    // Wrong answer - show new question
+                    button.clear();
+                    button.fillStyle(0xFF5252, 1);
+                    button.fillRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
+                    button.lineStyle(6, 0xffffff, 1);
+                    button.strokeRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
+
+                    // Shake animation
+                    this.tweens.add({
+                        targets: [button, buttonText],
+                        x: '+=10',
+                        duration: 50,
+                        yoyo: true,
+                        repeat: 3,
+                        onComplete: () => {
+                            // Show new question
+                            this.time.delayedCall(300, () => {
+                                this.showStartMathQuestion(overlay, welcomeText, instructionText);
+                            });
+                        }
+                    });
+                }
+            });
+        });
+    }
+
     showGameOver() {
         const { width, height } = this.scale;
-        
+
         // Game over overlay
         const overlay = this.add.graphics();
         overlay.fillStyle(0x000000, 0.85);
@@ -949,8 +1393,8 @@ class NumberGame extends Phaser.Scene {
         }).setOrigin(1, 0.5); // Right-aligned
         this.currentQuestionContainer.add(num1Text);
         
-        // Plus sign (to the left of second number)
-        const plusText = this.add.text(rightX - 90, questionY + 80, '+', {
+        // Plus sign (centered between two numbers)
+        const plusText = this.add.text(rightX - 100, questionY + 40, '+', {
             fontSize: '48px',
             fontFamily: 'Arial',
             color: '#ffffff',
