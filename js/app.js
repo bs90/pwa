@@ -2,7 +2,7 @@
 
 // Cache version (must match sw.js)
 // UPDATED: Phaser now local, 100% offline-capable!
-const CACHE_VERSION = '202601250820';
+const CACHE_VERSION = '202601250823';
 
 // Update cache version display on page load
 window.addEventListener('DOMContentLoaded', () => {
@@ -165,36 +165,17 @@ const games = {
 // Track loaded game script
 let currentGameScript = null;
 
-// Wait for Phaser to be ready (preloaded in index.html)
+// Phaser check (loaded via script tag in index.html - UMD build)
 function ensurePhaserLoaded() {
-  return new Promise((resolve, reject) => {
-    if (window.phaserLoaded && window.Phaser) {
-      console.log('✅ Phaser already loaded');
-      resolve();
-      return;
-    }
-    
-    console.log('⏳ Waiting for Phaser preload...');
-    
-    // Listen for phaser-ready event
-    const timeout = setTimeout(() => {
-      reject(new Error('Phaser preload timeout (30s)'));
-    }, 30000);
-    
-    window.addEventListener('phaser-ready', () => {
-      clearTimeout(timeout);
-      if (window.Phaser) {
-        console.log('✅ Phaser ready event received');
-        resolve();
-      } else {
-        reject(new Error('Phaser ready but window.Phaser not available'));
-      }
-    }, { once: true });
-  });
+  if (!window.Phaser) {
+    console.error('❌ Phaser not loaded! Check index.html');
+    throw new Error('Phaser is required but not loaded');
+  }
+  console.log('✅ Phaser ready:', window.Phaser.VERSION);
 }
 
 // Load game
-async function loadGame(gameName) {
+function loadGame(gameName) {
   const game = games[gameName];
   if (!game) return;
   
@@ -204,8 +185,8 @@ async function loadGame(gameName) {
   gameContent.innerHTML = '⏳ Loading game...'; // Show loading
   
   try {
-    // Wait for Phaser to be ready (preloaded in index.html)
-    await ensurePhaserLoaded();
+    // Check Phaser is loaded (should be from index.html script tag)
+    ensurePhaserLoaded();
     
     // Remove previous game script if exists
     if (currentGameScript) {

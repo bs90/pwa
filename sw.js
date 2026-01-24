@@ -1,7 +1,7 @@
 // Service Worker cho PWA Minigame Collection
 // Version và cache names (format: yyyymmddHHMM)
 // UPDATED: Phaser now local, 100% offline-capable!
-const CACHE_VERSION = '202601250820';
+const CACHE_VERSION = '202601250823';
 const CACHE_NAME = `minigame-pwa-${CACHE_VERSION}`;
 const OFFLINE_URL = './offline.html';
 
@@ -17,7 +17,7 @@ const PRECACHE_ASSETS = [
   './manifest.json',
   './games/number-game.js',
   './games/karate.js',
-  './vendor/phaser.esm.js',           // LOCAL Phaser (offline-capable!)
+  './vendor/phaser.min.js',           // LOCAL Phaser UMD (Safari compatible!)
   './images/game/car.png',
   './images/game/karateman.png',      // FIXED: correct filename
   // All icons for iOS PWA install
