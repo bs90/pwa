@@ -27,6 +27,7 @@ ${e.error?.stack || 'No stack trace'}
 });
 
 import * as Phaser from 'https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.esm.js';
+import { MathQuiz } from '../js/quiz.js';
 
 class NumberGame extends Phaser.Scene {
     constructor() {
@@ -154,7 +155,20 @@ class NumberGame extends Phaser.Scene {
         // this.spawnObstacle();
 
         // Show start quiz first
-        this.showStartQuiz();
+        MathQuiz.show(this, {
+            title: 'すうじゲーム',
+            instruction: 'はじめるには こたえてね!',
+            type: 'start',
+            onCorrect: () => {
+                // Start the game
+                this.gameStarted = true;
+
+                // Spawn initial pairs and obstacles
+                this.spawnNumberPair();
+                this.spawnNumberPair();
+                this.spawnObstacle();
+            }
+        });
         
         // Touch controls
         this.isDragging = false;
@@ -1061,34 +1075,16 @@ class NumberGame extends Phaser.Scene {
         });
     }
 
-    showStartQuiz() {
-        const { width, height } = this.scale;
-
-        // Start quiz overlay
-        const overlay = this.add.graphics();
-        overlay.fillStyle(0x000000, 0.85);
-        overlay.fillRect(0, 0, width, height);
-
-        // Welcome text
-        const welcomeText = this.add.text(width / 2, height * 0.12, 'すうじゲーム', {
-            fontSize: '56px',
-            fontFamily: 'Arial',
-            color: '#FFD700',
-            fontStyle: 'bold',
-            stroke: '#000000',
-            strokeThickness: 6
-        }).setOrigin(0.5);
-
-        // Instruction text
-        const instructionText = this.add.text(width / 2, height * 0.20, 'はじめるには こたえてね!', {
-            fontSize: '24px',
-            fontFamily: 'Arial',
-            color: '#ffffff'
-        }).setOrigin(0.5);
-
-        // Show math question
-        this.currentQuestionContainer = null;
-        this.showStartMathQuestion(overlay, welcomeText, instructionText);
+    showGameOver() {
+        MathQuiz.show(this, {
+            title: 'ゲームオーバー',
+            instruction: 'もういちどあそぶには こたえてね!',
+            type: 'gameover',
+            onCorrect: () => {
+                // Restart the game
+                this.scene.restart();
+            }
+        });
     }
 
     showStartMathQuestion(overlay, welcomeText, instructionText) {
