@@ -2,10 +2,8 @@
  * Shared Math Quiz Module
  * Reusable quiz logic for all Phaser games
  * Provides start quiz and game over quiz with math questions
+ * Pure JavaScript implementation - no Phaser dependencies
  */
-
-// Import Phaser from CDN (same as games)
-import * as Phaser from 'https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.esm.js';
 
 export class MathQuiz {
     /**
@@ -172,11 +170,23 @@ export class MathQuiz {
             button.fillRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
             button.lineStyle(4, 0xffffff, 0.5);
             button.strokeRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
-            // Use Phaser.Geom.Rectangle
-            button.setInteractive(
-                new Phaser.Geom.Rectangle(pos.x, pos.y, buttonWidth, buttonHeight),
-                Phaser.Geom.Rectangle.Contains
-            );
+            // Custom hit area callback - no Phaser dependencies
+            button.setInteractive({
+                hitArea: new (class {
+                    constructor(x, y, width, height) {
+                        this.x = x;
+                        this.y = y;
+                        this.width = width;
+                        this.height = height;
+                    }
+                })(pos.x, pos.y, buttonWidth, buttonHeight),
+                hitAreaCallback: (hitArea, x, y) => {
+                    return x >= hitArea.x && 
+                           x <= hitArea.x + hitArea.width && 
+                           y >= hitArea.y && 
+                           y <= hitArea.y + hitArea.height;
+                }
+            });
             scene.currentQuestionContainer.add(button);
 
             // Button text
