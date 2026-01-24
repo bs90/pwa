@@ -104,6 +104,12 @@
         window.phaserLoaded = true;
     </script>
     
+    <!-- Quiz Module (Global - NO ES modules for Safari!) -->
+    <script src="./js/quiz.js"></script>
+    <script>
+        console.log('✅ MathQuiz loaded:', typeof window.MathQuiz);
+    </script>
+    
     <!-- Main App Script -->
     <script src="./js/app.js"></script>
 </body>

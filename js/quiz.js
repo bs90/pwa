@@ -3,12 +3,12 @@
  * Reusable quiz logic for all Phaser games
  * Provides start quiz and game over quiz with math questions
  * Requires Phaser to be available globally
+ * 
+ * EXPOSED AS: window.MathQuiz (no ES modules for Safari compatibility)
  */
 
-// Note: Phaser must be loaded before this module
-// In Phaser games, Phaser is available globally via CDN or import
-
-export class MathQuiz {
+// MathQuiz class (exposed globally for Safari - NO ES modules!)
+window.MathQuiz = class MathQuiz {
     /**
      * Show a quiz overlay on a Phaser scene
      * @param {Phaser.Scene} scene - The Phaser scene

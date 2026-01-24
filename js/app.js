@@ -2,7 +2,7 @@
 
 // Cache version (must match sw.js)
 // UPDATED: Phaser now local, 100% offline-capable!
-const CACHE_VERSION = '202601250823';
+const CACHE_VERSION = '202601250828';
 
 // Update cache version display on page load
 window.addEventListener('DOMContentLoaded', () => {
@@ -197,9 +197,9 @@ function loadGame(gameName) {
     // Clear loading message
     gameContent.innerHTML = '';
     
-    // Load game script
+    // Load game script (NO module type - Safari compatible!)
     const script = document.createElement('script');
-    script.type = 'module'; // Enable ES6 modules
+    // NO script.type = 'module' - Safari blocks it!
     script.src = game.file + '?t=' + Date.now(); // Cache busting
     script.onload = () => {
       console.log(`✅ Game ${gameName} loaded`);

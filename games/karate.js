@@ -7,19 +7,28 @@
  * Kick: 15 → 14 → 13 → 12 → 11 → 10 → 9 → 8
  */
 
-// Phaser is preloaded globally in index.html
-// No need to import - use window.Phaser directly
+/**
+ * カラテゲーム (Karate Game)
+ * Uses global Phaser and MathQuiz (loaded in index.html)
+ * NO ES modules for Safari compatibility
+ */
 
-import { MathQuiz } from '../js/quiz.js';
-
-// Wait for Phaser to be available
+// Check dependencies loaded (from index.html script tags)
 if (!window.Phaser) {
-    console.error('❌ Phaser not loaded! Check index.html preload.');
-    throw new Error('Phaser is required but not loaded');
+    console.error('❌ Phaser not loaded! Check index.html');
+    throw new Error('Phaser is required');
+}
+if (!window.MathQuiz) {
+    console.error('❌ MathQuiz not loaded! Check index.html');
+    throw new Error('MathQuiz is required');
 }
 
 const Phaser = window.Phaser;
-console.log('✅ Karate game loaded with Phaser', Phaser.VERSION);
+const MathQuiz = window.MathQuiz;
+
+console.log('✅ Karate game starting...');
+console.log('  - Phaser:', Phaser.VERSION);
+console.log('  - MathQuiz:', typeof MathQuiz);
 
 // ===== FALLING ITEM CLASS =====
 class FallingItem {
