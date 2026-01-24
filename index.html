@@ -93,7 +93,29 @@
     <!-- Debug Console (for iPad - no inspect) -->
     <script src="./js/debug.js"></script>
     
-    <!-- Main App Script (loads Phaser on-demand) -->
+    <!-- Preload Phaser globally (Safari-compatible) -->
+    <script>
+        // Load Phaser before anything else
+        console.log('⏳ Preloading Phaser library...');
+        
+        // Create script tag to load Phaser
+        const phaserScript = document.createElement('script');
+        phaserScript.type = 'module';
+        phaserScript.textContent = `
+            import * as Phaser from './vendor/phaser.esm.js';
+            window.Phaser = Phaser;
+            window.phaserLoaded = true;
+            console.log('✅ Phaser preloaded globally');
+            console.log('✅ Phaser.Game:', typeof Phaser.Game);
+            console.log('✅ Phaser.Scene:', typeof Phaser.Scene);
+            
+            // Dispatch event when ready
+            window.dispatchEvent(new Event('phaser-ready'));
+        `;
+        document.head.appendChild(phaserScript);
+    </script>
+    
+    <!-- Main App Script -->
     <script src="./js/app.js"></script>
 </body>
 </html>

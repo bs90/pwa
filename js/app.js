@@ -2,7 +2,7 @@
 
 // Cache version (must match sw.js)
 // UPDATED: Phaser now local, 100% offline-capable!
-const CACHE_VERSION = '202601250815';
+const CACHE_VERSION = '202601250820';
 
 // Update cache version display on page load
 window.addEventListener('DOMContentLoaded', () => {
@@ -162,38 +162,35 @@ const games = {
   }
 };
 
-// Track loaded game script and Phaser state
+// Track loaded game script
 let currentGameScript = null;
-let phaserLoaded = false;
 
-// Preload Phaser globally (called once)
-async function ensurePhaserLoaded() {
-  if (phaserLoaded) {
-    console.log('✅ Phaser already loaded');
-    return;
-  }
-  
-  console.log('⏳ Loading Phaser...');
-  
-  try {
-    // Dynamic import Phaser (relative to js/ folder)
-    const PhaserModule = await import('../vendor/phaser.esm.js');
+// Wait for Phaser to be ready (preloaded in index.html)
+function ensurePhaserLoaded() {
+  return new Promise((resolve, reject) => {
+    if (window.phaserLoaded && window.Phaser) {
+      console.log('✅ Phaser already loaded');
+      resolve();
+      return;
+    }
     
-    // Extract default or named exports
-    const Phaser = PhaserModule.default || PhaserModule;
+    console.log('⏳ Waiting for Phaser preload...');
     
-    window.Phaser = Phaser;
-    phaserLoaded = true;
+    // Listen for phaser-ready event
+    const timeout = setTimeout(() => {
+      reject(new Error('Phaser preload timeout (30s)'));
+    }, 30000);
     
-    console.log('✅ Phaser loaded globally');
-    console.log('✅ Phaser.Game:', typeof Phaser.Game);
-    console.log('✅ Phaser.Scene:', typeof Phaser.Scene);
-  } catch (error) {
-    console.error('❌ Failed to load Phaser:', error);
-    console.error('Error details:', error.message);
-    console.error('Error stack:', error.stack);
-    throw error;
-  }
+    window.addEventListener('phaser-ready', () => {
+      clearTimeout(timeout);
+      if (window.Phaser) {
+        console.log('✅ Phaser ready event received');
+        resolve();
+      } else {
+        reject(new Error('Phaser ready but window.Phaser not available'));
+      }
+    }, { once: true });
+  });
 }
 
 // Load game
@@ -204,10 +201,10 @@ async function loadGame(gameName) {
   // Update UI first
   gameList.style.display = 'none';
   gameContainer.style.display = 'block';
-  gameContent.innerHTML = '⏳ Loading...'; // Show loading
+  gameContent.innerHTML = '⏳ Loading game...'; // Show loading
   
   try {
-    // Ensure Phaser is loaded BEFORE game
+    // Wait for Phaser to be ready (preloaded in index.html)
     await ensurePhaserLoaded();
     
     // Remove previous game script if exists
@@ -236,7 +233,7 @@ async function loadGame(gameName) {
           <p>Error: Script failed to load</p>
           <p style="font-size: 12px; margin-top: 20px;">
             Check debug console for details<br>
-            Phaser loaded: ${phaserLoaded ? 'YES' : 'NO'}
+            Phaser loaded: ${window.phaserLoaded ? 'YES' : 'NO'}
           </p>
           <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; font-size: 16px;">
             Thử lại
