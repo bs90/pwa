@@ -3,66 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="description" content="オフラインでもあそべるミニゲーム">
+    <meta name="description" content="ミニゲーム">
     <meta name="theme-color" content="#2196F3">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
-    <!-- PWA Meta Tags -->
     <link rel="manifest" href="./manifest.json">
     <link rel="icon" type="image/png" href="./images/icons/icon-192x192.png">
     <link rel="apple-touch-icon" href="./images/icons/icon-192x192.png">
     
-    <!-- CSS -->
     <link rel="stylesheet" href="./css/style.css">
     
-    <title>ミニゲーム - PWA</title>
+    <title>ミニゲーム</title>
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <h1>🎮 Minigame Collection</h1>
-            <p class="subtitle">Chơi mọi lúc, mọi nơi - kể cả khi offline!</p>
-        </header>
-
-        <!-- Install Banner (Android/Desktop) -->
-        <div id="installBanner" class="install-banner" style="display: none;">
-            <div class="banner-content">
-                <span>📱 アプリをインストールしよう!</span>
-                <button id="installBtn" class="btn-install">インストール</button>
-                <button id="dismissBtn" class="btn-dismiss">✕</button>
-            </div>
-        </div>
-        
-        <!-- iOS Install Instructions -->
-        <div id="iosInstallBanner" class="install-banner ios-banner" style="display: none;">
-            <div class="banner-content">
-                <div style="text-align: center;">
-                    <div style="font-size: 20px; margin-bottom: 8px;">📱 iOSにインストール</div>
-                    <div style="font-size: 13px; line-height: 1.6;">
-                        1️⃣ Safariの<strong>共有</strong>ボタン <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0a1 1 0 0 1 1 1v5.268l2.146-2.147a.5.5 0 1 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L7 6.268V1a1 1 0 0 1 1-1z"/><path d="M3 9.5a.5.5 0 0 1 .5.5v3.5a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V10a.5.5 0 0 1 1 0v3.5a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2V10a.5.5 0 0 1 .5-.5z"/></svg> をタップ<br/>
-                        2️⃣ <strong>「ホーム画面に追加」</strong>を選択<br/>
-                        3️⃣ オフラインでもあそべるよ! 🎮
-                    </div>
-                </div>
-                <button id="iosDismissBtn" class="btn-dismiss" style="position: absolute; top: 8px; right: 8px;">✕</button>
-            </div>
-        </div>
-
-        <!-- Online/Offline Status -->
-        <div id="statusBar" class="status-bar online">
-            <span id="statusText">🟢 オンライン</span>
-        </div>
-
         <!-- Game List -->
         <main class="game-list">
-            <!-- Test Game (Simple ES5) -->
-            <div class="game-card" data-game="test-simple">
-                <div class="game-icon" style="font-size: 80px;">🧪</div>
-                <div class="game-title">TEST</div>
-            </div>
-
             <!-- Number Game -->
             <div class="game-card" data-game="number-game">
                 <div class="game-icon"><img src="images/game/car.png" alt="Car" style="width: 120px; height: 120px; object-fit: contain;"></div>
@@ -83,38 +40,13 @@
                 <!-- Game content will be loaded here -->
             </div>
         </div>
-
-        <!-- Cache Version Display -->
-        <div class="cache-version" id="cacheVersionDisplay">
-            v202601232000
-        </div>
     </div>
 
-    <!-- Toast Notification -->
-    <div id="toast" class="toast">
-        <span class="toast-icon">💾</span>
-        <span id="toastMessage"></span>
-    </div>
-
-    <!-- Debug Console (for iPad - no inspect) -->
-    <script src="./js/debug.js"></script>
+    <!-- Phaser from CDN (simple) -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.min.js"></script>
     
-    <!-- Phaser Library (UMD build - Safari compatible, NO ES modules!) -->
-    <script src="./vendor/phaser.min.js"></script>
-    <script>
-        // Phaser is now available globally (UMD exposes window.Phaser)
-        console.log('✅ Phaser loaded (UMD):', typeof window.Phaser);
-        console.log('✅ Phaser.VERSION:', window.Phaser?.VERSION || 'unknown');
-        console.log('✅ Phaser.Game:', typeof window.Phaser?.Game);
-        console.log('✅ Phaser.Scene:', typeof window.Phaser?.Scene);
-        window.phaserLoaded = true;
-    </script>
-    
-    <!-- Quiz Module (Global - NO ES modules for Safari!) -->
+    <!-- Quiz Module -->
     <script src="./js/quiz.js"></script>
-    <script>
-        console.log('✅ MathQuiz loaded:', typeof window.MathQuiz);
-    </script>
     
     <!-- Main App Script -->
     <script src="./js/app.js"></script>
