@@ -32,6 +32,10 @@ ${e.error?.stack || 'No stack trace'}
  * NO ES modules for Safari compatibility
  */
 
+// Wrap in IIFE to avoid global variable conflicts
+(function() {
+'use strict';
+
 // Check dependencies loaded (from index.html script tags)
 if (!window.Phaser) {
     console.error('❌ Phaser not loaded! Check index.html');
@@ -1245,3 +1249,5 @@ try {
         `;
     }
 }
+
+})(); // End IIFE
