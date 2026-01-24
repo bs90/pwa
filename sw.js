@@ -1,6 +1,6 @@
 // Service Worker cho PWA Minigame Collection
 // Version và cache names (format: yyyymmddHHMM)
-const CACHE_VERSION = '202601211925';
+const CACHE_VERSION = '202601232000';
 const CACHE_NAME = `minigame-pwa-${CACHE_VERSION}`;
 const OFFLINE_URL = './offline.html';
 
@@ -13,7 +13,9 @@ const PRECACHE_ASSETS = [
   './js/app.js',
   './manifest.json',
   './games/number-game.js',
+  './games/karate.js',
   './images/game/car.png',
+  './images/game/karate.png',
   './images/icons/icon-192x192.png',
   './images/icons/icon-512x512.png',
   // Các icons khác sẽ được cache khi cần

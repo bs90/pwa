@@ -1,7 +1,7 @@
 // ===== PWA App Main Script =====
 
 // Cache version (must match sw.js)
-const CACHE_VERSION = '202601211925';
+const CACHE_VERSION = '202601232000';
 
 // Update cache version display on page load
 window.addEventListener('DOMContentLoaded', () => {
@@ -122,6 +122,10 @@ const games = {
   'number-game': {
     title: '🔢 すうじゲーム',
     file: './games/number-game.js'
+  },
+  'karate': {
+    title: '🥋 カラテ',
+    file: './games/karate.js'
   },
   gestures: {
     title: '👆 見本',
