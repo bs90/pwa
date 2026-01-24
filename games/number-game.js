@@ -1197,8 +1197,8 @@ if (typeof Phaser === 'undefined' || !Phaser.Game) {
 const config = {
     type: Phaser.AUTO,
     parent: 'gameContent',
-    width: window.innerWidth,
-    height: window.innerHeight,
+    width: Math.max(window.innerWidth, 320),  // Min 320px width
+    height: Math.max(window.innerHeight, 480), // Min 480px height
     scene: NumberGame,
     scale: {
         mode: Phaser.Scale.RESIZE,

@@ -624,8 +624,8 @@ class KarateGame extends Phaser.Scene {
 const config = {
     type: Phaser.AUTO,
     parent: 'gameContent',
-    width: window.innerWidth,
-    height: window.innerHeight,
+    width: Math.max(window.innerWidth, 320),  // Min 320px width
+    height: Math.max(window.innerHeight, 480), // Min 480px height
     backgroundColor: '#87CEEB',
     scene: KarateGame,
     scale: {
