@@ -23,9 +23,7 @@ if (!window.MathQuiz) {
     throw new Error('MathQuiz is required');
 }
 
-const Phaser = window.Phaser;
-const MathQuiz = window.MathQuiz;
-
+// Use global Phaser and MathQuiz directly (no const to avoid redeclaration)
 console.log('✅ Karate game starting...');
 console.log('  - Phaser:', Phaser.VERSION);
 console.log('  - MathQuiz:', typeof MathQuiz);
