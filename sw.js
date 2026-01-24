@@ -1,6 +1,7 @@
 // Service Worker cho PWA Minigame Collection
 // Version và cache names (format: yyyymmddHHMM)
-const CACHE_VERSION = '202601232000';
+// UPDATED: Phaser now local, 100% offline-capable!
+const CACHE_VERSION = '202601250758';
 const CACHE_NAME = `minigame-pwa-${CACHE_VERSION}`;
 const OFFLINE_URL = './offline.html';
 
@@ -11,14 +12,23 @@ const PRECACHE_ASSETS = [
   './offline.html',
   './css/style.css',
   './js/app.js',
+  './js/debug.js',                    // DEBUG console for iPad
+  './js/quiz.js',                     // Quiz module (FIXED: was missing!)
   './manifest.json',
   './games/number-game.js',
   './games/karate.js',
+  './vendor/phaser.esm.js',           // LOCAL Phaser (offline-capable!)
   './images/game/car.png',
-  './images/game/karate.png',
+  './images/game/karateman.png',      // FIXED: correct filename
+  // All icons for iOS PWA install
+  './images/icons/icon-72x72.png',
+  './images/icons/icon-96x96.png',
+  './images/icons/icon-128x128.png',
+  './images/icons/icon-144x144.png',
+  './images/icons/icon-152x152.png',
   './images/icons/icon-192x192.png',
-  './images/icons/icon-512x512.png',
-  // Các icons khác sẽ được cache khi cần
+  './images/icons/icon-384x384.png',
+  './images/icons/icon-512x512.png'
 ];
 
 // Install event - precache các assets quan trọng
@@ -66,117 +76,69 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - Network-first for game files, cache-first for static assets
+// Fetch event - Offline-first strategy (Phaser now local, no CDN!)
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  
-  // Allow CDN requests (Phaser from jsdelivr)
-  const isCDN = url.hostname === 'cdn.jsdelivr.net';
   
   // Skip non-GET requests
   if (event.request.method !== 'GET') {
     return;
   }
 
-  // Determine if this is a game file or CDN resource
-  const isGameOrCDN = url.pathname.includes('/games/') || isCDN;
+  // All same-origin requests
+  const isSameOrigin = url.origin === self.location.origin;
+  
+  // Determine if this is a game file
+  const isGameOrCDN = url.pathname.includes('/games/');
 
-  if (isGameOrCDN) {
-    // Network-first strategy for game files and CDN
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          // Check if valid response
-          if (!response || response.status !== 200) {
-            // Try cache as fallback
-            return caches.match(event.request).then(cached => cached || response);
-          }
-          
-          // Clone response to cache and return
-          const responseToCache = response.clone();
-          
-          caches.open(CACHE_NAME)
-            .then((cache) => {
-              cache.put(event.request, responseToCache);
-              console.log('[Service Worker] Cached new resource:', event.request.url);
-              
-              // Notify clients about cache update
-              const fileName = url.pathname.split('/').pop();
-              let message = '';
-              
-              if (isCDN) {
-                message = 'Phaserをキャッシュしました';
-              } else if (url.pathname.includes('/games/')) {
-                message = `${fileName}をキャッシュしました`;
-              }
-              
-              if (message) {
-                self.clients.matchAll().then(clients => {
-                  clients.forEach(client => {
-                    client.postMessage({
-                      type: 'CACHE_UPDATED',
-                      message: message
-                    });
-                  });
-                });
-              }
-            });
-
-          return response;
-        })
-        .catch(() => {
-          // Network failed - try cache
-          console.log('[Service Worker] Network failed, trying cache:', event.request.url);
-          return caches.match(event.request).then(cached => {
-            if (cached) {
-              return cached;
-            }
-            // If navigation request, show offline page
-            if (event.request.mode === 'navigate') {
-              return caches.match(OFFLINE_URL);
-            }
-            // Otherwise return error
-            return new Response('Network error', { status: 503 });
-          });
-        })
-    );
-  } else {
-    // Cache-first strategy for static assets (HTML, CSS, JS, images)
+  // Offline-first strategy for same-origin (everything is local now!)
+  if (isSameOrigin) {
     event.respondWith(
       caches.match(event.request)
         .then((cachedResponse) => {
-          // Return cached response if found
+          // Return cached immediately if available
           if (cachedResponse) {
-            console.log('[Service Worker] Returning from cache:', event.request.url);
+            console.log('[SW] Cache hit:', url.pathname);
+            
+            // Background update for game files (stale-while-revalidate)
+            if (isGameOrCDN) {
+              fetch(event.request).then(response => {
+                if (response && response.status === 200) {
+                  caches.open(CACHE_NAME).then(cache => {
+                    cache.put(event.request, response);
+                    console.log('[SW] Background updated:', url.pathname);
+                  });
+                }
+              }).catch(() => {}); // Silent fail
+            }
+            
             return cachedResponse;
           }
-
-          // Fetch from network
+          
+          // No cache - fetch from network
+          console.log('[SW] Cache miss, fetching:', url.pathname);
           return fetch(event.request)
             .then((response) => {
-              // Check if valid response
               if (!response || response.status !== 200) {
                 return response;
               }
               
-              // Cache same-origin resources
-              if (url.origin === self.location.origin) {
-                const responseToCache = response.clone();
-
-                caches.open(CACHE_NAME)
-                  .then((cache) => {
-                    cache.put(event.request, responseToCache);
-                    console.log('[Service Worker] Cached new resource:', event.request.url);
-                  });
-              }
-
+              // Cache the new resource
+              const responseToCache = response.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(event.request, responseToCache);
+                console.log('[SW] Cached:', url.pathname);
+              });
+              
               return response;
             })
-            .catch(() => {
-              // Network failed - return offline page for navigation
+            .catch((error) => {
+              console.error('[SW] Fetch failed:', url.pathname, error);
+              // Navigation request -> show offline page
               if (event.request.mode === 'navigate') {
                 return caches.match(OFFLINE_URL);
               }
+              return new Response('Network error', { status: 503 });
             });
         })
     );

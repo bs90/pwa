@@ -26,12 +26,27 @@
             <p class="subtitle">Chơi mọi lúc, mọi nơi - kể cả khi offline!</p>
         </header>
 
-        <!-- Install Banner -->
+        <!-- Install Banner (Android/Desktop) -->
         <div id="installBanner" class="install-banner" style="display: none;">
             <div class="banner-content">
                 <span>📱 アプリをインストールしよう!</span>
                 <button id="installBtn" class="btn-install">インストール</button>
                 <button id="dismissBtn" class="btn-dismiss">✕</button>
+            </div>
+        </div>
+        
+        <!-- iOS Install Instructions -->
+        <div id="iosInstallBanner" class="install-banner ios-banner" style="display: none;">
+            <div class="banner-content">
+                <div style="text-align: center;">
+                    <div style="font-size: 20px; margin-bottom: 8px;">📱 iOSにインストール</div>
+                    <div style="font-size: 13px; line-height: 1.6;">
+                        1️⃣ Safariの<strong>共有</strong>ボタン <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0a1 1 0 0 1 1 1v5.268l2.146-2.147a.5.5 0 1 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 1 1 .708-.708L7 6.268V1a1 1 0 0 1 1-1z"/><path d="M3 9.5a.5.5 0 0 1 .5.5v3.5a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V10a.5.5 0 0 1 1 0v3.5a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2V10a.5.5 0 0 1 .5-.5z"/></svg> をタップ<br/>
+                        2️⃣ <strong>「ホーム画面に追加」</strong>を選択<br/>
+                        3️⃣ オフラインでもあそべるよ! 🎮
+                    </div>
+                </div>
+                <button id="iosDismissBtn" class="btn-dismiss" style="position: absolute; top: 8px; right: 8px;">✕</button>
             </div>
         </div>
 
@@ -75,6 +90,9 @@
         <span id="toastMessage"></span>
     </div>
 
+    <!-- Debug Console (for iPad - no inspect) -->
+    <script src="./js/debug.js"></script>
+    
     <!-- Main App Script -->
     <script src="./js/app.js"></script>
 </body>

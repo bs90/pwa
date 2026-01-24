@@ -26,12 +26,15 @@ ${e.error?.stack || 'No stack trace'}
     }
 });
 
-import * as Phaser from 'https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.esm.js';
+// Import Phaser from local vendor (offline-capable)
+import * as Phaser from '../vendor/phaser.esm.js';
 
 // Make Phaser available globally for quiz.js
 window.Phaser = Phaser;
 
 import { MathQuiz } from '../js/quiz.js';
+
+console.log('✅ Number game loaded with local Phaser');
 
 class NumberGame extends Phaser.Scene {
     constructor() {

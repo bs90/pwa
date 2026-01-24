@@ -7,12 +7,15 @@
  * Kick: 15 → 14 → 13 → 12 → 11 → 10 → 9 → 8
  */
 
-import * as Phaser from 'https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.esm.js';
+// Import Phaser from local vendor (offline-capable)
+import * as Phaser from '../vendor/phaser.esm.js';
 
 // Make Phaser available globally for quiz.js
 window.Phaser = Phaser;
 
 import { MathQuiz } from '../js/quiz.js';
+
+console.log('✅ Karate game loaded with local Phaser');
 
 // ===== FALLING ITEM CLASS =====
 class FallingItem {

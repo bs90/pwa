@@ -1,7 +1,8 @@
 // ===== PWA App Main Script =====
 
 // Cache version (must match sw.js)
-const CACHE_VERSION = '202601232000';
+// UPDATED: Phaser now local, 100% offline-capable!
+const CACHE_VERSION = '202601250758';
 
 // Update cache version display on page load
 window.addEventListener('DOMContentLoaded', () => {
@@ -48,32 +49,60 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Install Prompt
+// ===== iOS Detection =====
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+const isStandalone = window.navigator.standalone || 
+                     window.matchMedia('(display-mode: standalone)').matches;
+
+console.log(`📱 iOS Device: ${isIOS}`);
+console.log(`🎯 Standalone Mode: ${isStandalone}`);
+
+// ===== Install Prompt =====
 let deferredPrompt;
 const installBanner = document.getElementById('installBanner');
 const installBtn = document.getElementById('installBtn');
 const dismissBtn = document.getElementById('dismissBtn');
+const iosInstallBanner = document.getElementById('iosInstallBanner');
+const iosDismissBtn = document.getElementById('iosDismissBtn');
 
+// iOS Install Instructions (iOS doesn't have beforeinstallprompt)
+if (isIOS && !isStandalone) {
+  console.log('🍎 Showing iOS install instructions');
+  // Show after 2 seconds
+  setTimeout(() => {
+    iosInstallBanner.style.display = 'block';
+  }, 2000);
+}
+
+iosDismissBtn?.addEventListener('click', () => {
+  iosInstallBanner.style.display = 'none';
+  localStorage.setItem('iosInstallDismissed', 'true');
+});
+
+// Don't show iOS banner if dismissed before
+if (localStorage.getItem('iosInstallDismissed') === 'true') {
+  iosInstallBanner.style.display = 'none';
+}
+
+// Android/Desktop Install Prompt
 window.addEventListener('beforeinstallprompt', (e) => {
-  // Prevent default browser install prompt
+  console.log('📱 Install prompt available');
   e.preventDefault();
   deferredPrompt = e;
   
-  // Show custom install banner
-  installBanner.style.display = 'block';
+  // Show custom install banner (Android/Desktop only)
+  if (!isIOS) {
+    installBanner.style.display = 'block';
+  }
 });
 
 installBtn?.addEventListener('click', async () => {
   if (!deferredPrompt) return;
   
-  // Show install prompt
   deferredPrompt.prompt();
-  
-  // Wait for user choice
   const { outcome } = await deferredPrompt.userChoice;
-  console.log(`User response to install prompt: ${outcome}`);
+  console.log(`✅ Install outcome: ${outcome}`);
   
-  // Reset deferred prompt
   deferredPrompt = null;
   installBanner.style.display = 'none';
 });
@@ -82,10 +111,10 @@ dismissBtn?.addEventListener('click', () => {
   installBanner.style.display = 'none';
 });
 
-// Check if app is already installed
 window.addEventListener('appinstalled', () => {
   console.log('✅ PWA installed successfully');
   installBanner.style.display = 'none';
+  iosInstallBanner.style.display = 'none';
   deferredPrompt = null;
 });
 
@@ -246,6 +275,24 @@ if ('PushManager' in window) {
   console.log('✅ Push Notifications supported');
 }
 
+// ===== Cache Size Monitor =====
+if ('storage' in navigator && 'estimate' in navigator.storage) {
+  navigator.storage.estimate().then(({usage, quota}) => {
+    const usageMB = (usage / 1024 / 1024).toFixed(2);
+    const quotaMB = (quota / 1024 / 1024).toFixed(0);
+    const percent = (usage / quota * 100).toFixed(1);
+    
+    console.log(`📦 Cache Storage: ${usageMB}MB / ${quotaMB}MB (${percent}%)`);
+    
+    // Warning if approaching iOS limit (50MB)
+    if (usage > 40 * 1024 * 1024) {
+      console.warn(`⚠️ Cache approaching iOS limit! (${usageMB}MB / 50MB)`);
+    }
+  }).catch(err => {
+    console.log('⚠️ Storage estimate not available:', err);
+  });
+}
+
 // ===== Log PWA capabilities =====
 console.log('🎮 Minigame Collection PWA Initialized');
 console.log('📱 Capabilities:', {
@@ -256,4 +303,6 @@ console.log('📱 Capabilities:', {
   share: 'share' in navigator,
   notifications: 'Notification' in window,
   backgroundSync: 'sync' in (navigator.serviceWorker?.ready || {}),
+  localStorage: 'localStorage' in window,
+  storageEstimate: 'storage' in navigator && 'estimate' in navigator.storage
 });
