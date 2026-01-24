@@ -2,7 +2,7 @@
 
 // Cache version (must match sw.js)
 // UPDATED: Phaser now local, 100% offline-capable!
-const CACHE_VERSION = '202601250810';
+const CACHE_VERSION = '202601250815';
 
 // Update cache version display on page load
 window.addEventListener('DOMContentLoaded', () => {
@@ -176,13 +176,22 @@ async function ensurePhaserLoaded() {
   console.log('⏳ Loading Phaser...');
   
   try {
-    // Dynamic import Phaser
-    const Phaser = await import('./vendor/phaser.esm.js');
+    // Dynamic import Phaser (relative to js/ folder)
+    const PhaserModule = await import('../vendor/phaser.esm.js');
+    
+    // Extract default or named exports
+    const Phaser = PhaserModule.default || PhaserModule;
+    
     window.Phaser = Phaser;
     phaserLoaded = true;
-    console.log('✅ Phaser loaded globally:', Phaser.VERSION || 'v3.90.0');
+    
+    console.log('✅ Phaser loaded globally');
+    console.log('✅ Phaser.Game:', typeof Phaser.Game);
+    console.log('✅ Phaser.Scene:', typeof Phaser.Scene);
   } catch (error) {
     console.error('❌ Failed to load Phaser:', error);
+    console.error('Error details:', error.message);
+    console.error('Error stack:', error.stack);
     throw error;
   }
 }

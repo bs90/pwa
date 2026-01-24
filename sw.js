@@ -1,7 +1,7 @@
 // Service Worker cho PWA Minigame Collection
 // Version và cache names (format: yyyymmddHHMM)
 // UPDATED: Phaser now local, 100% offline-capable!
-const CACHE_VERSION = '202601250810';
+const CACHE_VERSION = '202601250815';
 const CACHE_NAME = `minigame-pwa-${CACHE_VERSION}`;
 const OFFLINE_URL = './offline.html';
 
