@@ -1,9 +1,10 @@
 /**
  * カラテゲーム (Karate Game)
  * Tap anywhere on screen to play random punch or kick animation
- * Sprite sheet: 2 rows x 8 columns (2391x583 total, 299x291 per frame)
- * Row 1: frames 0-7 (punch animation)
- * Row 2: frames 8-15 (kick animation)
+ * Sprite sheet: 2 rows x 8 columns (2378x565 total, 297x282.5 per frame)
+ * Idle: 7 ↔ 15
+ * Punch: 7 → 6 → 5 → 4 → 3 → 2
+ * Kick: 15 → 14 → 13 → 12 → 11 → 10 → 9 → 8
  */
 
 import * as Phaser from 'https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.esm.js';
@@ -14,15 +15,13 @@ class KarateGame extends Phaser.Scene {
     }
 
     preload() {
-        // Load sprite sheet: 8 cols x 2 rows (2391x583 total)
-        // Skip first 2px from left edge
-        this.load.spritesheet('karate', 'images/game/karate_final.png', {
-            frameWidth: 299,   // 2389 / 8
-            frameHeight: 292,  // 583 / 2
-            startFrame: 0,
-            endFrame: 15,
-            margin: 2,         // Skip 2px from the left edge
-            spacing: 0
+        // Load sprite sheet: 8 cols x 2 rows (2378x565 total)
+        // frameWidth: 2378 / 8 = 297.25 ≈ 297
+        // frameHeight: 565 / 2 = 282.5 (use exact to get exactly 2 rows)
+        this.load.spritesheet('karate', 'images/game/karateman.png', {
+            frameWidth: 297,
+            frameHeight: 282.5,
+            endFrame: 15  // Only load frames 0-15
         });
 
         this.load.on('loaderror', (file) => {
@@ -36,41 +35,53 @@ class KarateGame extends Phaser.Scene {
         // Background
         this.add.rectangle(0, 0, width, height, 0x2C3E50).setOrigin(0, 0);
 
-        // Create animations
-        // Idle animation (standing still)
+        // Idle animation: alternate between frames 7 and 15
         this.anims.create({
             key: 'idle',
-            frames: [{ key: 'karate', frame: 6 }],
-            frameRate: 10,
+            frames: [
+                { key: 'karate', frame: 7 },
+                { key: 'karate', frame: 15 }
+            ],
+            frameRate: 2,
             repeat: -1
         });
 
-        // Punch animation: 6 → 5 → 4 → 3 → 2
+        // Punch animation: 7 → 6 → 5 → 4 → 3 → 2
         this.anims.create({
             key: 'punch',
             frames: [
+                { key: 'karate', frame: 7 },
                 { key: 'karate', frame: 6 },
                 { key: 'karate', frame: 5 },
                 { key: 'karate', frame: 4 },
                 { key: 'karate', frame: 3 },
                 { key: 'karate', frame: 2 }
             ],
-            frameRate: 10,
+            frameRate: 12,
             repeat: 0
         });
 
-        // Kick animation: Row 2 frames 8-15 (forward sequence)
+        // Kick animation: 15 → 14 → 13 → 12 → 11 → 10 → 9 → 8
         this.anims.create({
             key: 'kick',
-            frames: this.anims.generateFrameNumbers('karate', { start: 8, end: 15 }),
-            frameRate: 10,
+            frames: [
+                { key: 'karate', frame: 15 },
+                { key: 'karate', frame: 14 },
+                { key: 'karate', frame: 13 },
+                { key: 'karate', frame: 12 },
+                { key: 'karate', frame: 11 },
+                { key: 'karate', frame: 10 },
+                { key: 'karate', frame: 9 },
+                { key: 'karate', frame: 8 }
+            ],
+            frameRate: 12,
             repeat: 0
         });
 
         // Create main character sprite - positioned higher up on screen
         this.player = this.add.sprite(width / 2, height / 3, 'karate');
-        this.player.setScale(1.67); // 2.5 * (2/3) = 1.67
-        this.player.play('idle'); // Start with idle animation
+        this.player.setScale(1.67);
+        this.player.play('idle');
 
         // Return to idle after action animations complete
         this.player.on('animationcomplete', (animation) => {
