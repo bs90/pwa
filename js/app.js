@@ -2,7 +2,7 @@
 
 // Cache version (must match sw.js)
 // UPDATED: Phaser now local, 100% offline-capable!
-const CACHE_VERSION = '202601250758';
+const CACHE_VERSION = '202601250810';
 
 // Update cache version display on page load
 window.addEventListener('DOMContentLoaded', () => {
@@ -162,54 +162,93 @@ const games = {
   }
 };
 
-// Track loaded game script
+// Track loaded game script and Phaser state
 let currentGameScript = null;
+let phaserLoaded = false;
+
+// Preload Phaser globally (called once)
+async function ensurePhaserLoaded() {
+  if (phaserLoaded) {
+    console.log('✅ Phaser already loaded');
+    return;
+  }
+  
+  console.log('⏳ Loading Phaser...');
+  
+  try {
+    // Dynamic import Phaser
+    const Phaser = await import('./vendor/phaser.esm.js');
+    window.Phaser = Phaser;
+    phaserLoaded = true;
+    console.log('✅ Phaser loaded globally:', Phaser.VERSION || 'v3.90.0');
+  } catch (error) {
+    console.error('❌ Failed to load Phaser:', error);
+    throw error;
+  }
+}
 
 // Load game
-function loadGame(gameName) {
+async function loadGame(gameName) {
   const game = games[gameName];
   if (!game) return;
   
-  // Remove previous game script if exists
-  if (currentGameScript) {
-    currentGameScript.remove();
-    currentGameScript = null;
-  }
-  
-  // Update UI
+  // Update UI first
   gameList.style.display = 'none';
   gameContainer.style.display = 'block';
-  gameContent.innerHTML = ''; // Clear content
+  gameContent.innerHTML = '⏳ Loading...'; // Show loading
   
-  // Load game script
-  const script = document.createElement('script');
-  script.type = 'module'; // Enable ES6 modules
-  script.src = game.file + '?t=' + Date.now(); // Cache busting
-  script.onload = () => {
-    console.log(`✅ Game ${gameName} loaded`);
-    currentGameScript = script;
-  };
-  script.onerror = (event) => {
-    console.error('Script load error:', event);
+  try {
+    // Ensure Phaser is loaded BEFORE game
+    await ensurePhaserLoaded();
+    
+    // Remove previous game script if exists
+    if (currentGameScript) {
+      currentGameScript.remove();
+      currentGameScript = null;
+    }
+    
+    // Clear loading message
+    gameContent.innerHTML = '';
+    
+    // Load game script
+    const script = document.createElement('script');
+    script.type = 'module'; // Enable ES6 modules
+    script.src = game.file + '?t=' + Date.now(); // Cache busting
+    script.onload = () => {
+      console.log(`✅ Game ${gameName} loaded`);
+      currentGameScript = script;
+    };
+    script.onerror = (event) => {
+      console.error('❌ Script load error:', event);
+      gameContent.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: white;">
+          <h3>⚠️ Không thể tải game</h3>
+          <p>Game file: ${game.file}</p>
+          <p>Error: Script failed to load</p>
+          <p style="font-size: 12px; margin-top: 20px;">
+            Check debug console for details<br>
+            Phaser loaded: ${phaserLoaded ? 'YES' : 'NO'}
+          </p>
+          <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; font-size: 16px;">
+            Thử lại
+          </button>
+        </div>
+      `;
+    };
+    
+    document.body.appendChild(script);
+  } catch (error) {
+    console.error('❌ Failed to load game:', error);
     gameContent.innerHTML = `
       <div style="text-align: center; padding: 40px; color: white;">
-        <h3>⚠️ Không thể tải game</h3>
-        <p>Game file: ${game.file}</p>
-        <p>Error: Script failed to load</p>
-        <p style="font-size: 12px; margin-top: 20px;">
-          Có thể do:<br>
-          - Không có internet (lần đầu)<br>
-          - CDN bị chặn<br>
-          - Safari không hỗ trợ ES modules
-        </p>
+        <h3>⚠️ Lỗi tải game</h3>
+        <p>${error.message}</p>
         <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; font-size: 16px;">
           Thử lại
         </button>
       </div>
     `;
-  };
-  
-  document.body.appendChild(script);
+  }
 }
 
 // Back to game list

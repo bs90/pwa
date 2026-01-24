@@ -7,15 +7,19 @@
  * Kick: 15 → 14 → 13 → 12 → 11 → 10 → 9 → 8
  */
 
-// Import Phaser from local vendor (offline-capable)
-import * as Phaser from '../vendor/phaser.esm.js';
-
-// Make Phaser available globally for quiz.js
-window.Phaser = Phaser;
+// Phaser is preloaded globally in index.html
+// No need to import - use window.Phaser directly
 
 import { MathQuiz } from '../js/quiz.js';
 
-console.log('✅ Karate game loaded with local Phaser');
+// Wait for Phaser to be available
+if (!window.Phaser) {
+    console.error('❌ Phaser not loaded! Check index.html preload.');
+    throw new Error('Phaser is required but not loaded');
+}
+
+const Phaser = window.Phaser;
+console.log('✅ Karate game loaded with Phaser', Phaser.VERSION);
 
 // ===== FALLING ITEM CLASS =====
 class FallingItem {
