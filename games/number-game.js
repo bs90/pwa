@@ -27,6 +27,10 @@ ${e.error?.stack || 'No stack trace'}
 });
 
 import * as Phaser from 'https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.esm.js';
+
+// Make Phaser available globally for quiz.js
+window.Phaser = Phaser;
+
 import { MathQuiz } from '../js/quiz.js';
 
 class NumberGame extends Phaser.Scene {

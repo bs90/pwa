@@ -8,6 +8,10 @@
  */
 
 import * as Phaser from 'https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.esm.js';
+
+// Make Phaser available globally for quiz.js
+window.Phaser = Phaser;
+
 import { MathQuiz } from '../js/quiz.js';
 
 // ===== FALLING ITEM CLASS =====
@@ -23,9 +27,9 @@ class FallingItem {
         this.velocityY = 0;  // Starting velocity
         this.gravity = 800;  // Pixels per second squared (gravity acceleration)
         
-        // Create emoji text - 120x120px
+        // Create emoji text - 100x100px
         this.sprite = scene.add.text(x, y, emoji, {
-            fontSize: '120px'  // 120x120px size
+            fontSize: '100px'  // 100x100px size
         }).setOrigin(0.5);
         
         this.sprite.setDepth(10);  // Above background, below player
@@ -184,10 +188,10 @@ class FallingItem {
     
     getBounds() {
         return {
-            x: this.sprite.x - 60,  // Emoji width ~120px
-            y: this.sprite.y - 60,
-            width: 120,
-            height: 120
+            x: this.sprite.x - 50,  // Emoji width 100px
+            y: this.sprite.y - 50,
+            width: 100,
+            height: 100
         };
     }
 }
@@ -216,14 +220,15 @@ class KarateGame extends Phaser.Scene {
     create() {
         const { width, height } = this.scale;
 
-        // Calculate player position first to determine ground line
-        const playerY = height / 3 - 50;
+        // Responsive player positioning for iPad 8 (1024x768 landscape, 768x1024 portrait)
+        // Use percentage-based positioning instead of hardcoded offsets
+        const playerY = height * 0.4; // 40% from top (was height/3 - 50)
         const playerHeight = 297 * 1.67; // frame height * scale
         const groundLineY = playerY + (playerHeight * 0.9); // 10% below character = 90% from top of character
         
-        // Expand ground upward (make it 2x taller), then lower by 10%
+        // Expand ground upward (make it 2.5x taller from original)
         const groundHeight = height - groundLineY;
-        const groundY = groundLineY - groundHeight + (height * 0.1); // Start ground 2x higher, then lower by 10%
+        const groundY = groundLineY - (groundHeight * 2.5); // Start ground 2.5x higher
 
         // Background - Realistic Sky with Gradient
         const skyGradient = this.add.graphics();
@@ -306,7 +311,7 @@ class KarateGame extends Phaser.Scene {
 
         // ===== PHASE 1: Game State Setup =====
         this.itemConfig = {
-            good: ['🪑', '🎂', '🍬', '💎', '🍎', '🍕', '🎁', '🏀', '⚽', '🎮'],
+            good: ['🎂', '📺️', '💎', '🍎', '🍕', '🎁', '🏀', '⚽', '🎮'],
             bad: ['💣', '🪨'],
             baseSpawnRate: 2500,   // 2.5 seconds between spawns
             fallSpeed: 360,        // pixels/second (2x faster: 180 * 2)
@@ -318,15 +323,18 @@ class KarateGame extends Phaser.Scene {
 
         this.items = [];  // Active falling items
 
-        // Create main character sprite - positioned right and higher
-        this.player = this.add.sprite(width / 2 + 100, height / 3 - 50, 'karate');
+        // Create main character sprite - responsive positioning
+        // Use percentage for X (55% from left) and reuse playerY calculated above
+        const playerX = width * 0.55; // 55% from left (was width/2 + 100)
+        this.player = this.add.sprite(playerX, playerY, 'karate');
         this.player.setScale(1.67);
         this.player.play('idle');
 
         // ===== Calculate Hit Zone Position =====
         // Hit zone: bên trái nhân vật, cao hơn 1/4 chiều cao frame
         const frameHeight = 297 * 1.67; // frame height * scale
-        const hitZoneOffsetX = -this.itemConfig.hitZoneWidth / 2 - 120; // -170px left
+        // Responsive offset based on screen width (scale down offset for smaller screens)
+        const hitZoneOffsetX = -this.itemConfig.hitZoneWidth / 2 - Math.min(120, width * 0.12); // Scale offset with screen
         // Adjust Y to keep bottom position same: old bottom was at -94px + 75 = -19px
         // New: want bottom at -19px, so center = -19 - 50 = -69px
         const hitZoneOffsetY = -frameHeight / 4 + 30 + 25; // Move down 25px to keep bottom position
@@ -624,20 +632,19 @@ class KarateGame extends Phaser.Scene {
 const config = {
     type: Phaser.AUTO,
     parent: 'gameContent',
-    width: Math.max(window.innerWidth, 320),  // Min 320px width
-    height: Math.max(window.innerHeight, 480), // Min 480px height
+    width: 768,   // Base width for iPad portrait
+    height: 1024, // Base height for iPad portrait
     backgroundColor: '#87CEEB',
     scene: KarateGame,
     scale: {
-        mode: Phaser.Scale.RESIZE,
-        autoCenter: Phaser.Scale.CENTER_BOTH
+        mode: Phaser.Scale.FIT,  // FIT mode scales to fit screen while maintaining aspect ratio
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        width: 768,
+        height: 1024
     }
 };
 
 // Initialize game
 const game = new Phaser.Game(config);
 
-// Handle window resize
-window.addEventListener('resize', () => {
-    game.scale.resize(window.innerWidth, window.innerHeight);
-});
+// FIT mode handles resize automatically, no manual resize needed

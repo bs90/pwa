@@ -2,8 +2,11 @@
  * Shared Math Quiz Module
  * Reusable quiz logic for all Phaser games
  * Provides start quiz and game over quiz with math questions
- * Pure JavaScript implementation - no Phaser dependencies
+ * Requires Phaser to be available globally
  */
+
+// Note: Phaser must be loaded before this module
+// In Phaser games, Phaser is available globally via CDN or import
 
 export class MathQuiz {
     /**
@@ -144,7 +147,7 @@ export class MathQuiz {
         scene.currentQuestionContainer.add(line);
 
         // Answer buttons (6 choices in 3x2 grid)
-        const buttonStartY = height * 0.58;
+        const buttonStartY = height * 0.58 + 50; // Moved down 50px
         const buttonWidth = 120;
         const buttonHeight = 90;
         const gapX = 30;
@@ -170,23 +173,11 @@ export class MathQuiz {
             button.fillRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
             button.lineStyle(4, 0xffffff, 0.5);
             button.strokeRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
-            // Custom hit area callback - no Phaser dependencies
-            button.setInteractive({
-                hitArea: new (class {
-                    constructor(x, y, width, height) {
-                        this.x = x;
-                        this.y = y;
-                        this.width = width;
-                        this.height = height;
-                    }
-                })(pos.x, pos.y, buttonWidth, buttonHeight),
-                hitAreaCallback: (hitArea, x, y) => {
-                    return x >= hitArea.x && 
-                           x <= hitArea.x + hitArea.width && 
-                           y >= hitArea.y && 
-                           y <= hitArea.y + hitArea.height;
-                }
-            });
+            // Use Phaser's built-in Rectangle for hit area
+            button.setInteractive(
+                new Phaser.Geom.Rectangle(pos.x, pos.y, buttonWidth, buttonHeight),
+                Phaser.Geom.Rectangle.Contains
+            );
             scene.currentQuestionContainer.add(button);
 
             // Button text
@@ -238,7 +229,7 @@ export class MathQuiz {
                     button.strokeRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
 
                     // Success text
-                    const successText = scene.add.text(width / 2, height * 0.50, '⭐ せいかい! ⭐', {
+                    const successText = scene.add.text(width / 2, height * 0.50 + 50, '⭐ せいかい! ⭐', {
                         fontSize: '48px',
                         fontFamily: 'Arial',
                         color: '#4CAF50',
