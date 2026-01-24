@@ -2,7 +2,7 @@
 
 // Cache version (must match sw.js)
 // UPDATED: Phaser now local, 100% offline-capable!
-const CACHE_VERSION = '202601250828';
+const CACHE_VERSION = '202601250830';
 
 // Update cache version display on page load
 window.addEventListener('DOMContentLoaded', () => {
@@ -148,6 +148,10 @@ const backBtn = document.getElementById('backBtn');
 
 // Game data
 const games = {
+  'test-simple': {
+    title: '🧪 TEST',
+    file: './games/test-simple.js'
+  },
   'number-game': {
     title: '🔢 すうじゲーム',
     file: './games/number-game.js'

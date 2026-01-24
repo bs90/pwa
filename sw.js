@@ -1,7 +1,7 @@
 // Service Worker cho PWA Minigame Collection
 // Version và cache names (format: yyyymmddHHMM)
 // UPDATED: Phaser now local, 100% offline-capable!
-const CACHE_VERSION = '202601250828';
+const CACHE_VERSION = '202601250830';
 const CACHE_NAME = `minigame-pwa-${CACHE_VERSION}`;
 const OFFLINE_URL = './offline.html';
 
@@ -16,6 +16,7 @@ const PRECACHE_ASSETS = [
   './js/quiz.js',                     // Quiz module (FIXED: was missing!)
   './manifest.json',
   './games/number-game.js',
+  './games/test-simple.js',           // TEST game (ES5)
   './games/karate.js',
   './vendor/phaser.min.js',           // LOCAL Phaser UMD (Safari compatible!)
   './images/game/car.png',
