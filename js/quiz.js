@@ -67,8 +67,8 @@ export class MathQuiz {
         }
 
         // Generate math question (addition within 100)
-        const num1 = Phaser.Math.Between(1, 50);
-        const num2 = Phaser.Math.Between(1, 50);
+        const num1 = Math.floor(Math.random() * 50) + 1;
+        const num2 = Math.floor(Math.random() * 50) + 1;
         const correctAnswer = num1 + num2;
 
         // Generate 5 wrong answers
@@ -76,7 +76,7 @@ export class MathQuiz {
         const offsets = [-10, -7, -5, -3, -1, 1, 3, 5, 7, 10];
 
         while (wrongAnswers.length < 5) {
-            const offset = Phaser.Utils.Array.GetRandom(offsets);
+            const offset = offsets[Math.floor(Math.random() * offsets.length)];
             const wrongAnswer = correctAnswer + offset;
 
             if (wrongAnswer > 0 &&
@@ -87,9 +87,12 @@ export class MathQuiz {
             }
         }
 
-        // Combine and shuffle answers
+        // Combine and shuffle answers (Fisher-Yates shuffle)
         const allAnswers = [correctAnswer, ...wrongAnswers];
-        Phaser.Utils.Array.Shuffle(allAnswers);
+        for (let i = allAnswers.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [allAnswers[i], allAnswers[j]] = [allAnswers[j], allAnswers[i]];
+        }
 
         // Container for question elements
         scene.currentQuestionContainer = scene.add.container(0, 0);
