@@ -4,6 +4,9 @@
  * Provides start quiz and game over quiz with math questions
  */
 
+// Import Phaser from CDN (same as games)
+import * as Phaser from 'https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.esm.js';
+
 export class MathQuiz {
     /**
      * Show a quiz overlay on a Phaser scene
@@ -169,6 +172,7 @@ export class MathQuiz {
             button.fillRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
             button.lineStyle(4, 0xffffff, 0.5);
             button.strokeRoundedRect(pos.x, pos.y, buttonWidth, buttonHeight, 20);
+            // Use Phaser.Geom.Rectangle
             button.setInteractive(
                 new Phaser.Geom.Rectangle(pos.x, pos.y, buttonWidth, buttonHeight),
                 Phaser.Geom.Rectangle.Contains
