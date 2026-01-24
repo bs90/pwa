@@ -650,15 +650,13 @@ class KarateGame extends Phaser.Scene {
 const config = {
     type: Phaser.AUTO,
     parent: 'gameContent',
-    width: 768,   // Base width for iPad portrait
-    height: 1024, // Base height for iPad portrait
+    width: Math.max(window.innerWidth, 320),  // Min 320px width
+    height: Math.max(window.innerHeight, 480), // Min 480px height
     backgroundColor: '#87CEEB',
     scene: KarateGame,
     scale: {
-        mode: Phaser.Scale.FIT,  // FIT mode scales to fit screen while maintaining aspect ratio
-        autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: 768,
-        height: 1024
+        mode: Phaser.Scale.RESIZE,
+        autoCenter: Phaser.Scale.CENTER_BOTH
     }
 };
 
