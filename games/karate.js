@@ -330,13 +330,15 @@ class KarateGame extends Phaser.Scene {
         // ===== PHASE 1: Game State Setup =====
         this.itemConfig = {
             good: ['🎂', '📺️', '💎', '🍎', '🍕', '🎁', '🏀', '⚽', '🎮'],
-            bad: ['💣', '🪨'],
+            bad: ['💣', '🧨'],
+            heal: ['🧊', '🍧'],  // Heal items - only spawn when lives < 3
             baseSpawnRate: 2500,   // 2.5 seconds between spawns
             fallSpeed: 360,        // pixels/second (2x faster: 180 * 2)
             hitZoneWidth: 100,     // 100px width
             hitZoneHeight: 100,    // 100px height (reduced from 150, keeping bottom position)
             baseBadChance: 0.4,    // 40% bad items at start
-            difficultyIncrease: 0.05  // +5% bad per difficulty level
+            difficultyIncrease: 0.05,  // +5% bad per difficulty level
+            healChance: 0.3        // 30% chance for heal item when lives < 3
         };
 
         this.items = [];  // Active falling items
@@ -462,20 +464,27 @@ class KarateGame extends Phaser.Scene {
     spawnItem() {
         if (this.gameState.isGameOver || !this.gameState.gameStarted) return;
         
-        // Calculate bad item chance based on difficulty
-        const baseBad = this.itemConfig.baseBadChance;
-        const increase = this.gameState.difficulty * this.itemConfig.difficultyIncrease;
-        const badChance = Math.min(baseBad + increase, 0.55);  // Max 55%
-        
-        const isBad = Math.random() < badChance;
-        
         let emoji, type;
-        if (isBad) {
-            emoji = Phaser.Utils.Array.GetRandom(this.itemConfig.bad);
-            type = 'bad';
+        
+        // Check if should spawn heal item (only when lives < 3)
+        if (this.gameState.lives < 3 && Math.random() < this.itemConfig.healChance) {
+            emoji = Phaser.Utils.Array.GetRandom(this.itemConfig.heal);
+            type = 'heal';
         } else {
-            emoji = Phaser.Utils.Array.GetRandom(this.itemConfig.good);
-            type = 'good';
+            // Calculate bad item chance based on difficulty
+            const baseBad = this.itemConfig.baseBadChance;
+            const increase = this.gameState.difficulty * this.itemConfig.difficultyIncrease;
+            const badChance = Math.min(baseBad + increase, 0.55);  // Max 55%
+            
+            const isBad = Math.random() < badChance;
+            
+            if (isBad) {
+                emoji = Phaser.Utils.Array.GetRandom(this.itemConfig.bad);
+                type = 'bad';
+            } else {
+                emoji = Phaser.Utils.Array.GetRandom(this.itemConfig.good);
+                type = 'good';
+            }
         }
         
         // Spawn at hit zone X position so items fall through hit zone
@@ -554,6 +563,26 @@ class KarateGame extends Phaser.Scene {
             // Check for difficulty increase every 10 points
             if (this.gameState.score % 10 === 0 && this.gameState.score > 0) {
                 this.gameState.difficulty += 1;
+            }
+            
+        } else if (item.type === 'heal') {
+            // Heal item: +1 life, reduce redness
+            if (this.gameState.lives < 3) {
+                this.gameState.lives += 1;
+                this.gameState.hitCount = Math.max(0, this.gameState.hitCount - 1);
+                
+                // Update player tint (less red)
+                const tints = [0xFFFFFF, 0xFFCCCC, 0xFF9999, 0xFF6666];
+                this.player.setTint(tints[this.gameState.hitCount]);
+                
+                // Update UI
+                this.updateLivesUI();
+                
+                // Launch item with parabola (visual feedback)
+                item.launch();
+            } else {
+                // Already at max lives, just destroy
+                item.destroy();
             }
             
         } else {
