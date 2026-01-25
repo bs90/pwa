@@ -366,7 +366,8 @@ class KarateGame extends Phaser.Scene {
             difficulty: 0,         // Level tăng sau mỗi 10 điểm
             itemSpawnX: this.player.x + hitZoneOffsetX,  // Items fall through hit zone
             isAnimating: false,    // Track if punch/kick is playing
-            gameStarted: false     // Game hasn't started yet (waiting for quiz)
+            gameStarted: false,    // Game hasn't started yet (waiting for quiz)
+            collectedItems: []     // Track collected good items
         };
 
 
@@ -434,6 +435,9 @@ class KarateGame extends Phaser.Scene {
             stroke: '#000000',
             strokeThickness: 8
         }).setOrigin(0.5, 0.5).setDepth(100);
+
+        // Collected items display - bottom left corner
+        this.collectedItemsContainer = this.add.container(10, height - 10).setDepth(100);
 
         // Show start quiz first
         MathQuiz.show(this, {
@@ -537,8 +541,12 @@ class KarateGame extends Phaser.Scene {
             // Good item: +1 score, launch item
             this.gameState.score += 1;
             
+            // Add to collected items
+            this.gameState.collectedItems.push(item.emoji);
+            
             // Update UI
             this.updateScoreUI();
+            this.updateCollectedItemsUI();
             
             // Launch item with parabola
             item.launch();
@@ -580,6 +588,21 @@ class KarateGame extends Phaser.Scene {
     updateLivesUI() {
         const hearts = '❤️'.repeat(this.gameState.lives);
         this.livesText.setText(hearts);
+    }
+
+    updateCollectedItemsUI() {
+        // Clear existing items
+        this.collectedItemsContainer.removeAll(true);
+        
+        // Add each collected item as 20x20 emoji
+        const spacing = 25; // 20px item + 5px gap
+        this.gameState.collectedItems.forEach((emoji, index) => {
+            const itemText = this.scene.add.text(index * spacing, 0, emoji, {
+                fontSize: '20px'
+            }).setOrigin(0, 1); // Bottom-left origin
+            
+            this.collectedItemsContainer.add(itemText);
+        });
     }
 
     triggerGameOver() {
