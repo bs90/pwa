@@ -240,7 +240,7 @@ class KarateGame extends Phaser.Scene {
 
         // Responsive player positioning for iPad 8 (1024x768 landscape, 768x1024 portrait)
         // Use percentage-based positioning instead of hardcoded offsets
-        const playerY = height * 0.4; // 40% from top (was height/3 - 50)
+        const playerY = height * 0.4 + 50; // 40% from top + 50px to make easier for kids
         const playerHeight = 297 * 1.67; // frame height * scale
         const groundLineY = playerY + (playerHeight * 0.9); // 10% below character = 90% from top of character
         
