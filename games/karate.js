@@ -597,7 +597,7 @@ class KarateGame extends Phaser.Scene {
         // Add each collected item as 20x20 emoji
         const spacing = 25; // 20px item + 5px gap
         this.gameState.collectedItems.forEach((emoji, index) => {
-            const itemText = this.scene.add.text(index * spacing, 0, emoji, {
+            const itemText = this.add.text(index * spacing, 0, emoji, {
                 fontSize: '20px'
             }).setOrigin(0, 1); // Bottom-left origin
             
