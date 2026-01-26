@@ -18,9 +18,9 @@ const games = {
     title: '🥋 カラテ',
     file: './games/karate.js'
   },
-  'base-game': {
+  'golf': {
     title: '⛳ ゴルフ',
-    file: './games/base-game.js'
+    file: './games/golf.js'
   }
 };
 
