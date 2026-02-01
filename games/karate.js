@@ -230,6 +230,11 @@ class KarateGame extends Phaser.Scene {
             endFrame: 15  // Only load frames 0-15
         });
 
+        // Load audio files
+        this.load.audio('punch', 'sounds/karate/punch.wav');
+        this.load.audio('get', 'sounds/karate/get.wav');
+        this.load.audio('hurt', 'sounds/karate/hurt.wav');
+
         this.load.on('loaderror', (file) => {
             console.error('Error loading:', file.src);
         });
@@ -404,13 +409,16 @@ class KarateGame extends Phaser.Scene {
         // Make entire screen tappable for random animation
         this.input.on('pointerdown', () => {
             const currentAnim = this.player.anims.currentAnim;
-            
+
             // Only play new animation if currently idle
             if (!currentAnim || currentAnim.key === 'idle') {
                 // Randomly choose punch or kick (50/50 chance)
                 const randomAction = Math.random() < 0.5 ? 'punch' : 'kick';
                 this.player.play(randomAction);
                 this.gameState.isAnimating = true;
+
+                // Play punch sound for both punch and kick
+                this.sound.play('punch');
             }
         });
 
@@ -447,9 +455,9 @@ class KarateGame extends Phaser.Scene {
             instruction: 'はじめるには こたえてね!',
             type: 'start',
             onCorrect: () => {
-                // Start the game
+                // Start the game (Phaser auto-unlocks audio on user interaction)
                 this.gameState.gameStarted = true;
-                
+
                 // Start spawning items
                 this.spawnTimer = this.time.addEvent({
                     delay: this.itemConfig.baseSpawnRate,
@@ -549,60 +557,69 @@ class KarateGame extends Phaser.Scene {
         if (item.type === 'good') {
             // Good item: +1 score, launch item
             this.gameState.score += 1;
-            
+
             // Add to collected items
             this.gameState.collectedItems.push(item.emoji);
-            
+
             // Update UI
             this.updateScoreUI();
             this.updateCollectedItemsUI();
-            
+
+            // Play get sound
+            this.sound.play('get');
+
             // Launch item with parabola
             item.launch();
-            
+
             // Check for difficulty increase every 10 points
             if (this.gameState.score % 10 === 0 && this.gameState.score > 0) {
                 this.gameState.difficulty += 1;
             }
-            
+
         } else if (item.type === 'heal') {
             // Heal item: +1 life, reduce redness
             if (this.gameState.lives < 3) {
                 this.gameState.lives += 1;
                 this.gameState.hitCount = Math.max(0, this.gameState.hitCount - 1);
-                
+
                 // Update player tint (less red)
                 const tints = [0xFFFFFF, 0xFFCCCC, 0xFF9999, 0xFF6666];
                 this.player.setTint(tints[this.gameState.hitCount]);
-                
+
                 // Update UI
                 this.updateLivesUI();
-                
+
+                // Play get sound (same as good items)
+                this.sound.play('get');
+
                 // Launch item with parabola (visual feedback)
                 item.launch();
             } else {
                 // Already at max lives, just destroy
                 item.destroy();
             }
-            
+
         } else {
             // Bad item: -1 life, visual effects
             this.gameState.lives -= 1;
             this.gameState.hitCount += 1;
-            
+
             // Update UI
             this.updateLivesUI();
-            
+
             // Update player tint (progressively redder)
             const tints = [0xFFFFFF, 0xFFCCCC, 0xFF9999, 0xFF6666];
             this.player.setTint(tints[this.gameState.hitCount]);
-            
+
+            // Play hurt sound
+            this.sound.play('hurt');
+
             // Camera shake
             this.cameras.main.shake(300, 0.015);
-            
+
             // Drop item straight down
             item.drop();
-            
+
             // Check game over
             if (this.gameState.lives <= 0) {
                 this.triggerGameOver();
@@ -636,15 +653,15 @@ class KarateGame extends Phaser.Scene {
 
     triggerGameOver() {
         this.gameState.isGameOver = true;
-        
+
         // Stop spawning
         this.spawnTimer.remove();
-        
+
         // Destroy all active items
         for (let item of [...this.items]) {
             item.destroy();
         }
-        
+
         const { width, height } = this.scale;
         
         // Darken background
