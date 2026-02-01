@@ -334,16 +334,18 @@ class KarateGame extends Phaser.Scene {
 
         // ===== PHASE 1: Game State Setup =====
         this.itemConfig = {
-            good: ['🎂', '📺️', '💎', '🍎', '🍕', '🎁', '🏀', '⚽', '🎮'],
+            good: ['🎂', '📺️', '💎', '🍎', '🍕', '🏀', '⚽', '🎮'],  // Removed 🎁
             bad: ['💣', '🧨'],
             heal: ['🧊', '🍧'],  // Heal items - only spawn when lives < 3
+            blackbox: '🎁',      // Mystery box - 50:50 good/bad reveal
             baseSpawnRate: 2500,   // 2.5 seconds between spawns
             fallSpeed: 360,        // pixels/second (2x faster: 180 * 2)
             hitZoneWidth: 100,     // 100px width
             hitZoneHeight: 100,    // 100px height (reduced from 150, keeping bottom position)
             baseBadChance: 0.4,    // 40% bad items at start
             difficultyIncrease: 0.05,  // +5% bad per difficulty level
-            healChance: 0.3        // 30% chance for heal item when lives < 3
+            healChance: 0.3,       // 30% chance for heal item when lives < 3
+            blackboxChance: 0.2    // 20% chance for mystery box
         };
 
         this.items = [];  // Active falling items
@@ -471,11 +473,16 @@ class KarateGame extends Phaser.Scene {
 
     spawnItem() {
         if (this.gameState.isGameOver || !this.gameState.gameStarted) return;
-        
+
         let emoji, type;
-        
+
+        // Check if should spawn blackbox (mystery box)
+        if (Math.random() < this.itemConfig.blackboxChance) {
+            emoji = this.itemConfig.blackbox;
+            type = 'blackbox';
+        }
         // Check if should spawn heal item (only when lives < 3)
-        if (this.gameState.lives < 3 && Math.random() < this.itemConfig.healChance) {
+        else if (this.gameState.lives < 3 && Math.random() < this.itemConfig.healChance) {
             emoji = Phaser.Utils.Array.GetRandom(this.itemConfig.heal);
             type = 'heal';
         } else {
@@ -483,9 +490,9 @@ class KarateGame extends Phaser.Scene {
             const baseBad = this.itemConfig.baseBadChance;
             const increase = this.gameState.difficulty * this.itemConfig.difficultyIncrease;
             const badChance = Math.min(baseBad + increase, 0.55);  // Max 55%
-            
+
             const isBad = Math.random() < badChance;
-            
+
             if (isBad) {
                 emoji = Phaser.Utils.Array.GetRandom(this.itemConfig.bad);
                 type = 'bad';
@@ -494,7 +501,7 @@ class KarateGame extends Phaser.Scene {
                 type = 'good';
             }
         }
-        
+
         // Spawn at hit zone X position so items fall through hit zone
         const item = new FallingItem(
             this,
@@ -503,7 +510,7 @@ class KarateGame extends Phaser.Scene {
             emoji,
             type
         );
-        
+
         this.items.push(item);
     }
 
@@ -554,7 +561,67 @@ class KarateGame extends Phaser.Scene {
     }
 
     handleItemHit(item) {
-        if (item.type === 'good') {
+        if (item.type === 'blackbox') {
+            // BlackBox: 50:50 reveal good or bad
+            const isGood = Math.random() < 0.5;
+
+            // Save position for spawning revealed item
+            const boxX = item.sprite.x;
+            const boxY = item.sprite.y;
+
+            // Destroy blackbox
+            item.destroy();
+
+            // Spawn revealed item at same position
+            const revealedEmoji = isGood
+                ? Phaser.Utils.Array.GetRandom(this.itemConfig.good)
+                : Phaser.Utils.Array.GetRandom(this.itemConfig.bad);
+
+            const revealedItem = new FallingItem(
+                this,
+                boxX,
+                boxY,
+                revealedEmoji,
+                isGood ? 'good' : 'bad'
+            );
+
+            this.items.push(revealedItem);
+
+            // Apply effects immediately based on revealed type
+            if (isGood) {
+                // Good: +1 score
+                this.gameState.score += 1;
+                this.gameState.collectedItems.push(revealedEmoji);
+                this.updateScoreUI();
+                this.updateCollectedItemsUI();
+                this.sound.play('get');
+                revealedItem.launch();
+
+                // Check difficulty increase
+                if (this.gameState.score % 10 === 0 && this.gameState.score > 0) {
+                    this.gameState.difficulty += 1;
+                }
+            } else {
+                // Bad: -1 life
+                this.gameState.lives -= 1;
+                this.gameState.hitCount += 1;
+                this.updateLivesUI();
+
+                const tints = [0xFFFFFF, 0xFFCCCC, 0xFF9999, 0xFF6666];
+                this.player.setTint(tints[this.gameState.hitCount]);
+
+                this.sound.play('hurt');
+                this.cameras.main.shake(300, 0.015);
+                revealedItem.drop();
+
+                if (this.gameState.lives <= 0) {
+                    this.triggerGameOver();
+                }
+            }
+
+            return;
+
+        } else if (item.type === 'good') {
             // Good item: +1 score, launch item
             this.gameState.score += 1;
 
